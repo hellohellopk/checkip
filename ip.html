@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IP 及 DNS 資訊查詢</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background: #1e1e1e;
+      font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+      margin: 0; 
+      padding: 0;
+      color: #d4d4d4;
+      min-height: 100vh;
+      padding: 40px 20px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-size: 120%;
+    }
+    .terminal-window {
+      max-width: 1100px;
+      width: 95%;
+      margin: 0 auto;
+      background: #282c34;
+      border-radius: 10px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+      overflow: hidden;
+      border: 1px solid #1a1d23;
+    }
+    .terminal-header {
+      background: #21252b;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #181a1f;
+    }
+    .terminal-controls {
+      display: flex;
+      gap: 10px;
+    }
+    .terminal-controls span {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .terminal-controls .close { background: #ff5f56; }
+    .terminal-controls .minimize { background: #ffbd2e; }
+    .terminal-controls .maximize { background: #27c93f; }
+    .terminal-title {
+      flex: 1;
+      text-align: center;
+      color: #abb2bf;
+      font-size: 15.6px;
+      font-weight: 500;
+      margin-left: -60px;
+    }
+    .terminal-body {
+      padding: 34px 38px;
+      background: #282c34;
+      min-height: 500px;
+    }
+    .prompt-line {
+      display: flex;
+      align-items: center;
+      margin-bottom: 28px;
+      font-size: 18px;
+    }
+    .prompt-symbol {
+      color: #98c379;
+      margin-right: 10px;
+      font-weight: bold;
+    }
+    .prompt-path {
+      color: #61afef;
+      margin-right: 10px;
+    }
+    .prompt-git {
+      color: #c678dd;
+      margin-right: 10px;
+    }
+    .prompt-arrow {
+      color: #98c379;
+      margin-right: 12px;
+    }
+    h1 {
+      color: #61afef;
+      font-size: 33.6px;
+      font-weight: 600;
+      margin: 0 0 10px 0;
+      letter-spacing: 0.5px;
+    }
+    .subtitle {
+      color: #5c6370;
+      font-size: 16.8px;
+      margin-bottom: 38px;
+      font-style: italic;
+    }
+    .section-title {
+      margin-top: 43px;
+      font-size: 21.6px;
+      font-weight: 600;
+      color: #e5c07b;
+      margin-bottom: 19px;
+      display: flex;
+      align-items: center;
+    }
+    .section-title:first-of-type {
+      margin-top: 0;
+    }
+    .section-title::before {
+      content: '▸';
+      margin-right: 10px;
+      color: #98c379;
+    }
+    .info-block {
+      background: #21252b;
+      border-left: 4px solid #61afef;
+      padding: 19px 24px;
+      margin-bottom: 24px;
+      border-radius: 4px;
+      font-size: 16.8px;
+    }
+    .info-row {
+      display: flex;
+      padding: 12px 0;
+      border-bottom: 1px solid #2c313a;
+      transition: all 0.2s ease;
+    }
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    .info-row:hover {
+      background: #2c313a;
+      margin: 0 -10px;
+      padding: 12px 10px;
+      border-radius: 3px;
+    }
+    .info-label {
+      color: #e06c75;
+      font-weight: 600;
+      width: 35%;
+      min-width: 168px;
+    }
+    .info-value {
+      color: #98c379;
+      word-break: break-word;
+      flex: 1;
+    }
+    .loading {
+      color: #e5c07b;
+      text-align: center;
+      margin: 24px 0;
+      font-size: 16.8px;
+      padding: 28px;
+      background: #21252b;
+      border-radius: 6px;
+      border: 1px dashed #3e4451;
+    }
+    .loading::before {
+      content: '⟳ ';
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+    .loading::after {
+      content: '...';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
+    }
+    .error {
+      color: #e06c75;
+      text-align: center;
+      margin: 24px 0;
+      font-size: 16.8px;
+      padding: 24px;
+      background: #3b2c2c;
+      border-radius: 6px;
+      border-left: 4px solid #e06c75;
+    }
+    .error::before {
+      content: '✗ ';
+      font-weight: bold;
+      margin-right: 7px;
+    }
+    .comment {
+      color: #5c6370;
+      font-style: italic;
+      margin: 19px 0;
+      font-size: 15.6px;
+    }
+    .comment::before {
+      content: '# ';
+    }
+    .dns-container {
+      background: #21252b;
+      border-radius: 6px;
+      padding: 19px;
+      margin-top: 24px;
+      border: 1px solid #3e4451;
+    }
+    .dns-frame {
+      width: 100%;
+      height: 550px;
+      border: none;
+      border-radius: 4px;
+      background: #1e1e1e;
+    }
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background: #98c379;
+      border-radius: 50%;
+      margin-right: 10px;
+      animation: pulse 2s infinite;
+      box-shadow: 0 0 10px #98c379;
+    }
+    @keyframes pulse {
+      0%, 100% { 
+        opacity: 1;
+        box-shadow: 0 0 10px #98c379;
+      }
+      50% { 
+        opacity: 0.5;
+        box-shadow: 0 0 5px #98c379;
+      }
+    }
+    .divider {
+      height: 1px;
+      background: #3e4451;
+      margin: 34px 0;
+      position: relative;
+    }
+    .divider::before {
+      content: '─────────────────────────────────────────────────────────────────────';
+      position: absolute;
+      left: 0;
+      top: -10px;
+      color: #3e4451;
+      font-size: 12px;
+      letter-spacing: 2px;
+    }
+    @media (max-width: 768px) {
+      body {
+        padding: 20px 10px;
+        font-size: 110%;
+      }
+      .terminal-body {
+        padding: 24px 22px;
+      }
+      .terminal-title {
+        font-size: 14.4px;
+      }
+      .prompt-line {
+        font-size: 15.6px;
+        flex-wrap: wrap;
+      }
+      h1 {
+        font-size: 28.8px;
+      }
+      .subtitle {
+        font-size: 15.6px;
+      }
+      .section-title {
+        font-size: 19.2px;
+      }
+      .info-label {
+        width: 40%;
+        min-width: 144px;
+        font-size: 15.6px;
+      }
+      .info-value {
+        font-size: 15.6px;
+      }
+      .dns-frame {
+        height: 480px;
+      }
+    }
+    @media (max-width: 480px) {
+      body {
+        font-size: 100%;
+      }
+      .terminal-body {
+        padding: 19px 17px;
+      }
+      h1 {
+        font-size: 24px;
+      }
+      .info-row {
+        flex-direction: column;
+        gap: 7px;
+      }
+      .info-label {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="terminal-window">
+    <div class="terminal-header">
+      <div class="terminal-controls">
+        <span class="close"></span>
+        <span class="minimize"></span>
+        <span class="maximize"></span>
+      </div>
+      <div class="terminal-title">ip-dns-checker — zsh — 80×24</div>
+    </div>
+    
+    <div class="terminal-body">
+      <div class="prompt-line">
+        <span class="prompt-symbol">➜</span>
+        <span class="prompt-path">~/network-tools</span>
+        <span class="prompt-git">git:(main)</span>
+        <span class="prompt-arrow">✗</span>
+      </div>
+      
+      <h1>🌐 IP 及 DNS 資訊查詢</h1>
+      <div class="subtitle"># 即時自動獲取您的網路位置與 DNS 解析器資訊</div>
+
+      <div class="section-title">
+        <span class="status-indicator"></span>IP 地理位置資訊
+      </div>
+      
+      <div class="comment">正在執行 IP 地理位置查詢...</div>
+      
+      <div id="ip-loading" class="loading">查詢中</div>
+      
+      <div class="info-block" id="ip-block" style="display:none;">
+        <div class="info-row">
+          <div class="info-label">ip_address:</div>
+          <div class="info-value" id="ip"></div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">location:</div>
+          <div class="info-value" id="location"></div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">isp:</div>
+          <div class="info-value" id="isp"></div>
+        </div>
+      </div>
+      
+      <div id="ip-error" class="error" style="display:none;"></div>
+
+      <div class="divider"></div>
+
+      <div class="section-title">
+        <span class="status-indicator"></span>DNS 解析器檢測
+      </div>
+      
+      <div class="comment">載入 dnscheck.tools 即時檢測工具...</div>
+      
+      <div class="dns-container">
+        <iframe 
+          src="https://dnscheck.tools/" 
+          class="dns-frame"
+          title="DNS Check Tools"
+          loading="lazy"
+          sandbox="allow-scripts allow-same-origin"
+        ></iframe>
+      </div>
+      
+      <div class="prompt-line" style="margin-top: 28px;">
+        <span class="prompt-symbol">➜</span>
+        <span class="prompt-path">~/network-tools</span>
+        <span class="prompt-git">git:(main)</span>
+        <span class="prompt-arrow">✗</span>
+        <span style="color: #abb2bf;">▊</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // IP 資訊查詢 - 使用 ipapi.co（支援 HTTPS）
+    fetch('https://ipapi.co/json/')
+      .then(res => {
+        if (!res.ok) throw new Error('Network response was not ok');
+        return res.json();
+      })
+      .then(data => {
+        console.log('IP 資料:', data);
+        document.getElementById('ip').innerText = `"${data.ip}"` || '"-"';
+        
+        // 合併國家和城市資訊
+        let locationText = '';
+        if (data.city && data.region) {
+          locationText = `"${data.city}, ${data.region}, ${data.country_name || '-'} (${data.country_code || '-'})"`;
+        } else if (data.city) {
+          locationText = `"${data.city}, ${data.country_name || '-'} (${data.country_code || '-'})"`;
+        } else {
+          locationText = `"${data.country_name || '-'} (${data.country_code || '-'})"`;
+        }
+        document.getElementById('location').innerText = locationText;
+        
+        document.getElementById('isp').innerText = `"${data.org}"` || '"-"';
+        
+        document.getElementById('ip-loading').style.display = 'none';
+        document.getElementById('ip-block').style.display = 'block';
+      })
+      .catch(err => {
+        console.error('IP 查詢錯誤:', err);
+        // 備用方案：使用 ipify（只返回 IP）
+        fetch('https://api.ipify.org?format=json')
+          .then(res => res.json())
+          .then(data => {
+            document.getElementById('ip').innerText = `"${data.ip}"` || '"-"';
+            document.getElementById('location').innerText = '"（僅IP資訊）"';
+            document.getElementById('isp').innerText = '"-"';
+            
+            document.getElementById('ip-loading').style.display = 'none';
+            document.getElementById('ip-block').style.display = 'block';
+          })
+          .catch(err2 => {
+            console.error('備用 IP 查詢錯誤:', err2);
+            document.getElementById('ip-loading').style.display = 'none';
+            document.getElementById('ip-error').innerText = '無法取得 IP 資訊，請檢查網路連線或稍後再試';
+            document.getElementById('ip-error').style.display = 'block';
+          });
+      });
+  </script>
+</body>
+</html>
