@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支票金額轉換器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+            margin: 0;
+        }
+        .converter-container {
+            background: white;
+            padding: 2em;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 800px; /* --- 修改：加寬容器以容納大字體 --- */
+        }
+        
+        /* --- 新增：放大標題字體 --- */
+        h1 {
+            font-size: 2.5em; 
+        }
+
+        .input-group {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        input[type="number"] {
+            padding: 10px;
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            border-radius: 4px 0 0 4px;
+            font-size: 1.5em; /* --- 新增：放大輸入框字體 --- */
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            flex-shrink: 0;
+            font-size: 1.5em; /* --- 新增：放大按鈕字體 --- */
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            min-height: 150px; /* 增加最小高度 */
+            text-align: left;
+            word-wrap: break-word;
+            font-size: 2.2em; /* --- 新增：大大放大結果區字體 --- */
+            line-height: 1.6; /* --- 新增：增加行高，讓文字不擠在一起 --- */
+        }
+        #result-container p {
+            margin: 0.5em 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="converter-container">
+        <h1>支票中英文大寫金額產生器</h1>
+        
+        <div class="input-group">
+            <input type="number" id="numberInput" placeholder="例如：12345.67">
+            <button id="convertBtn">轉換</button>
+        </div>
+
+        <div id="result-container">
+            <p><strong>中文大寫：</strong></p>
+            <p id="resultTextChinese"></p>
+            <hr>
+            <p><strong>英文大寫：</strong></p>
+            <p id="resultTextEnglish"></p>
+        </div>
+    </div>
+
+    <script>
+        const numberInput = document.getElementById('numberInput');
+        const convertBtn = document.getElementById('convertBtn');
+        const resultTextChinese = document.getElementById('resultTextChinese');
+        const resultTextEnglish = document.getElementById('resultTextEnglish');
+
+        convertBtn.addEventListener('click', function() {
+            const inputValue = numberInput.value;
+            if (inputValue === '') {
+                resultTextChinese.textContent = '請輸入數字。';
+                resultTextEnglish.textContent = 'Please enter a number.';
+                return;
+            }
+            resultTextChinese.textContent = convertToChineseAmount(inputValue);
+            resultTextEnglish.textContent = convertToEnglishAmount(inputValue);
+        });
+
+        function convertToChineseAmount(numStr) {
+            const chineseNum = ['零', '壹', '貳', '參', '肆', '伍', '陸', '柒', '捌', '玖'];
+            const unit = ['', '拾', '佰', '仟'];
+            const sectionUnit = ['', '萬', '億', '兆'];
+            let [integerPart, decimalPart] = numStr.split('.');
+            if (integerPart.length > 16) return "數字過大，無法轉換。";
+            let integerChinese = '';
+            if (parseInt(integerPart, 10) === 0) {
+                integerChinese = '零';
+            } else {
+                let sectionCount = Math.ceil(integerPart.length / 4);
+                for (let i = 0; i < sectionCount; i++) {
+                    let start = Math.max(0, integerPart.length - (i + 1) * 4);
+                    let end = integerPart.length - i * 4;
+                    let section = integerPart.substring(start, end);
+                    let sectionChinese = '', zeroFlag = false;
+                    for (let j = 0; j < section.length; j++) {
+                        const digit = parseInt(section[j]), position = section.length - 1 - j;
+                        if (digit === 0) {
+                            zeroFlag = true;
+                        } else {
+                            if (zeroFlag) { sectionChinese += '零'; zeroFlag = false; }
+                            sectionChinese += chineseNum[digit] + unit[position];
+                        }
+                    }
+                    if (sectionChinese !== '') integerChinese = sectionChinese + sectionUnit[i] + integerChinese;
+                }
+            }
+            let decimalChinese = '';
+            if (decimalPart && decimalPart.length > 0) {
+                const jiao = parseInt(decimalPart[0] || '0'), fen = parseInt(decimalPart[1] || '0');
+                if (jiao > 0) decimalChinese += chineseNum[jiao] + '角';
+                else if (fen > 0) decimalChinese += '零';
+                if (fen > 0) decimalChinese += chineseNum[fen] + '分';
+            }
+            return decimalChinese === '' ? integerChinese + '圓整' : integerChinese + '圓' + decimalChinese;
+        }
+
+        function convertToEnglishAmount(numStr) {
+            const ones = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
+            const teens = ['TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];
+            const tens = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'];
+            const thousands = ['', 'THOUSAND', 'MILLION', 'BILLION'];
+            function convertThreeDigits(num) {
+                let str = '';
+                if (num >= 100) {
+                    str += ones[Math.floor(num / 100)] + ' HUNDRED ';
+                    num %= 100;
+                }
+                if (num >= 20) {
+                    str += tens[Math.floor(num / 10)];
+                    if (num % 10 !== 0) { str += ' ' + ones[num % 10]; }
+                } else if (num >= 10) {
+                    str += teens[num - 10];
+                } else if (num > 0) {
+                    str += ones[num];
+                }
+                return str.trim();
+            }
+            let [integerPart, decimalPart] = numStr.split('.');
+            if (integerPart === '0') { integerPart = ''; }
+            if (integerPart.length > 12) return "Number too large to convert.";
+            let integerEnglish = '';
+            if (integerPart) {
+                let count = 0;
+                while (integerPart.length > 0) {
+                    const chunk = parseInt(integerPart.slice(-3));
+                    if (chunk > 0) { integerEnglish = convertThreeDigits(chunk) + ' ' + thousands[count] + ' ' + integerEnglish; }
+                    integerPart = integerPart.slice(0, -3);
+                    count++;
+                }
+            }
+            let decimalEnglish = '';
+            if (decimalPart && parseInt(decimalPart) > 0) {
+                const centsVal = parseInt((decimalPart + '00').substring(0, 2));
+                decimalEnglish = 'AND CENTS ' + convertThreeDigits(centsVal) + ' ';
+            }
+            let result = (integerEnglish.trim() + ' ' + decimalEnglish).trim();
+            if (result === '') return 'ZERO ONLY';
+            return (result + ' ONLY').replace(/\s+/g, ' ');
+        }
+    </script>
+
+</body>
+</html>
