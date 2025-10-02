@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Currency Converter | 貨幣轉換器</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#232b36; color:#fff; padding:20px; }
+    .container { max-width:400px; margin:0 auto; background:#253041; border-radius:15px; box-shadow:0 6px 24px rgba(0,0,0,.4); overflow:hidden; }
+    .header { background:#374263; padding:24px 20px 20px; text-align:center; }
+    .header h1 { color:#a2c5f4; font-size:21px; letter-spacing:2px; }
+    .header .update-time { color:#cbe9ff; font-size:13px; margin-top:6px; }
+    .input-section { padding:24px 20px; text-align:center; }
+    .input-label { font-size:15px; color:#44fdba; margin-bottom:8px; }
+    .amount-input { background:transparent; border:none; color:#fff; font-size:48px; font-weight:bold; text-align:center; width:100%; outline:none; margin-bottom:12px; }
+    .selector { width:100%; padding:10px; background:#242e3f; border:1px solid #335483; border-radius:6px; color:#fff; font-size:16px; margin-bottom:24px; outline:none; }
+    .currency-list { padding-bottom:16px; }
+    .currency-item { background:#29344b; border:1px solid #2c3e50; border-radius:13px; display:flex; align-items:center; margin:12px 18px; padding:14px 10px; }
+    .flag { width:36px; height:24px; border-radius:6px; margin-right:16px; display:flex; align-items:center; justify-content:center; font-size:22px; }
+    .currency-info { display:flex; flex-direction:column; }
+    .currency-code { color:#5cdfc3; font-weight:bold; font-size:17px; }
+    .currency-ch { color:#9bb4d0; font-size:14px; }
+    .currency-en { color:#84c9ff; font-size:13px; margin-top:2px; }
+    .currency-value { flex:1; text-align:right; color:#fff; font-size:22px; font-weight:bold; }
+    .loading, .error { text-align:center; padding:32px 0; color:#84c9ff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>fx_rate_converter</h1>
+      <div class="update-time" id="updateTime">匯率更新中...</div>
+    </div>
+    <div class="input-section">
+      <div class="input-label">基準金額</div>
+      <input type="number" id="amountInput" class="amount-input" value="100" min="0" step="0.01">
+      <select id="baseCurrencySelect" class="selector"></select>
+    </div>
+    <div class="currency-list" id="currencyList">
+      <div class="loading">載入匯率中...</div>
+    </div>
+  </div>
+  <script>
+    // 主清單固定顯示這9種貨幣
+    const mainCurrencies = [
+      { code:'HKD', ch:'港幣', en:'Hong Kong Dollar', flag:'🇭🇰' },
+      { code:'USD', ch:'美元', en:'US Dollar', flag:'🇺🇸' },
+      { code:'JPY', ch:'日元', en:'Japanese Yen', flag:'🇯🇵' },
+      { code:'CNY', ch:'人民幣', en:'Chinese Yuan', flag:'🇨🇳' },
+      { code:'TWD', ch:'新台幣', en:'New Taiwan Dollar', flag:'🇹🇼' },
+      { code:'EUR', ch:'歐元', en:'Euro', flag:'🇪🇺' },
+      { code:'INR', ch:'印度盧比', en:'Indian Rupee', flag:'🇮🇳' },
+      { code:'TRY', ch:'土耳其里拉', en:'Turkish Lira', flag:'🇹🇷' },
+      { code:'NGN', ch:'奈及利亞奈拉', en:'Nigerian Naira', flag:'🇳🇬' }
+    ];
+
+    // 下拉選單：Google Finance/ISO 4217 所有主流貨幣
+    const allCurrencies = [
+      {code:'AED',en:'United Arab Emirates Dirham'},{code:'AFN',en:'Afghan Afghani'},
+      {code:'ALL',en:'Albanian Lek'},{code:'AMD',en:'Armenian Dram'},
+      {code:'ANG',en:'Netherlands Antillean Guilder'},{code:'ARS',en:'Argentine Peso'},
+      {code:'AUD',en:'Australian Dollar'},{code:'AWG',en:'Aruban Florin'},
+      {code:'AZN',en:'Azerbaijani Manat'},{code:'BAM',en:'Bosnia-Herzegovina Convertible Mark'},
+      {code:'BDT',en:'Bangladeshi Taka'},{code:'BGN',en:'Bulgarian Lev'},
+      {code:'BHD',en:'Bahraini Dinar'},{code:'BND',en:'Brunei Dollar'},
+      {code:'BOB',en:'Bolivian Boliviano'},{code:'BRL',en:'Brazilian Real'},
+      {code:'BSD',en:'Bahamian Dollar'},{code:'BWP',en:'Botswanan Pula'},
+      {code:'BYN',en:'Belarusian Ruble'},{code:'BZD',en:'Belize Dollar'},
+      {code:'CAD',en:'Canadian Dollar'},{code:'CHF',en:'Swiss Franc'},
+      {code:'CLP',en:'Chilean Peso'},{code:'CNY',en:'Chinese Yuan'},
+      {code:'COP',en:'Colombian Peso'},{code:'CRC',en:'Costa Rican Colón'},
+      {code:'CUP',en:'Cuban Peso'},{code:'CZK',en:'Czech Koruna'},
+      {code:'DKK',en:'Danish Krone'},{code:'DOP',en:'Dominican Peso'},
+      {code:'DZD',en:'Algerian Dinar'},{code:'EGP',en:'Egyptian Pound'},
+      {code:'EUR',en:'Euro'},{code:'FJD',en:'Fijian Dollar'},
+      {code:'GBP',en:'British Pound Sterling'},{code:'GEL',en:'Georgian Lari'},
+      {code:'GHS',en:'Ghanaian Cedi'},{code:'HKD',en:'Hong Kong Dollar'},
+      {code:'HNL',en:'Honduran Lempira'},{code:'HRK',en:'Croatian Kuna'},
+      {code:'HUF',en:'Hungarian Forint'},{code:'IDR',en:'Indonesian Rupiah'},
+      {code:'ILS',en:'Israeli New Sheqel'},{code:'INR',en:'Indian Rupee'},
+      {code:'IQD',en:'Iraqi Dinar'},{code:'IRR',en:'Iranian Rial'},
+      {code:'ISK',en:'Icelandic Króna'},{code:'JMD',en:'Jamaican Dollar'},
+      {code:'JOD',en:'Jordanian Dinar'},{code:'JPY',en:'Japanese Yen'},
+      {code:'KES',en:'Kenyan Shilling'},{code:'KGS',en:'Kyrgystani Som'},
+      {code:'KRW',en:'South Korean Won'},{code:'KWD',en:'Kuwaiti Dinar'},
+      {code:'KYD',en:'Cayman Islands Dollar'},{code:'KZT',en:'Kazakhstani Tenge'},
+      {code:'LAK',en:'Laotian Kip'},{code:'LBP',en:'Lebanese Pound'},
+      {code:'LKR',en:'Sri Lankan Rupee'},{code:'MAD',en:'Moroccan Dirham'},
+      {code:'MDL',en:'Moldovan Leu'},{code:'MKD',en:'Macedonian Denar'},
+      {code:'MMK',en:'Myanma Kyat'},{code:'MOP',en:'Macanese Pataca'},
+      {code:'MUR',en:'Mauritian Rupee'},{code:'MVR',en:'Maldivian Rufiyaa'},
+      {code:'MXN',en:'Mexican Peso'},{code:'MYR',en:'Malaysian Ringgit'},
+      {code:'NAD',en:'Namibian Dollar'},{code:'NGN',en:'Nigerian Naira'},
+      {code:'NIO',en:'Nicaraguan Córdoba'},{code:'NOK',en:'Norwegian Krone'},
+      {code:'NPR',en:'Nepalese Rupee'},{code:'NZD',en:'New Zealand Dollar'},
+      {code:'OMR',en:'Omani Rial'},{code:'PAB',en:'Panamanian Balboa'},
+      {code:'PEN',en:'Peruvian Nuevo Sol'},{code:'PHP',en:'Philippine Peso'},
+      {code:'PKR',en:'Pakistani Rupee'},{code:'PLN',en:'Polish Zloty'},
+      {code:'PYG',en:'Paraguayan Guarani'},{code:'QAR',en:'Qatari Rial'},
+      {code:'RON',en:'Romanian Leu'},{code:'RSD',en:'Serbian Dinar'},
+      {code:'RUB',en:'Russian Ruble'},{code:'SAR',en:'Saudi Riyal'},
+      {code:'SCR',en:'Seychellois Rupee'},{code:'SEK',en:'Swedish Krona'},
+      {code:'SGD',en:'Singapore Dollar'},{code:'THB',en:'Thai Baht'},
+      {code:'TND',en:'Tunisian Dinar'},{code:'TRY',en:'Turkish Lira'},
+      {code:'TTD',en:'Trinidad and Tobago Dollar'},{code:'TWD',en:'New Taiwan Dollar'},
+      {code:'TZS',en:'Tanzanian Shilling'},{code:'UAH',en:'Ukrainian Hryvnia'},
+      {code:'UGX',en:'Ugandan Shilling'},{code:'USD',en:'US Dollar'},
+      {code:'UYU',en:'Uruguayan Peso'},{code:'UZS',en:'Uzbekistan Som'},
+      {code:'VES',en:'Venezuelan Bolívar'},{code:'VND',en:'Vietnamese Dong'},
+      {code:'XCD',en:'East Caribbean Dollar'},{code:'XOF',en:'CFA Franc BCEAO'},
+      {code:'XPF',en:'CFP Franc'},{code:'YER',en:'Yemeni Rial'},
+      {code:'ZAR',en:'South African Rand'}
+    ];
+
+    let rates = {}, baseCurrency = 'HKD';
+    const amtInput = document.getElementById('amountInput');
+    const baseSelect = document.getElementById('baseCurrencySelect');
+    const listDiv = document.getElementById('currencyList');
+    const upd = document.getElementById('updateTime');
+
+    function initSelect() {
+      baseSelect.innerHTML = '';
+      allCurrencies.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.code;
+        o.textContent = `${c.code} - ${c.en}`;
+        if (c.code === baseCurrency) o.selected = true;
+        baseSelect.appendChild(o);
+      });
+    }
+
+    async function fetchRates() {
+      try {
+        upd.textContent = '匯率更新中...';
+        const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${baseCurrency}`);
+        const data = await res.json();
+        rates = data.rates; 
+        rates[baseCurrency] = 1;
+        const now = new Date().toLocaleString('zh-HK', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
+        upd.textContent = `匯率更新: ${now}`;
+        renderList();
+      } catch {
+        listDiv.innerHTML = '<div class="error">無法載入匯率</div>';
+      }
+    }
+
+    function renderList() {
+      const amt = parseFloat(amtInput.value) || 0;
+      let html = '';
+      mainCurrencies.forEach(c => {
+        const rt = rates[c.code] || 0;
+        const val = c.code === baseCurrency ? amt.toFixed(2) : (amt * rt).toFixed(2);
+        html += `
+          <div class="currency-item">
+            <div class="flag">${c.flag}</div>
+            <div class="currency-info">
+              <div class="currency-code">${c.code} ${c.ch}</div>
+              <div class="currency-en">${c.en}</div>
+            </div>
+            <div class="currency-value">${val}</div>
+          </div>`;
+      });
+      listDiv.innerHTML = html;
+    }
+
+    amtInput.addEventListener('input', renderList);
+    baseSelect.addEventListener('change', e => {
+      baseCurrency = e.target.value;
+      fetchRates();
+    });
+
+    initSelect();
+    fetchRates();
+    setInterval(fetchRates, 300000);
+  </script>
+</body>
+</html>
