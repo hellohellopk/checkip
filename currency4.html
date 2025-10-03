@@ -1,0 +1,327 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Currency Converter | 貨幣轉換器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #2c3e50;
+            padding: 20px;
+            color: #fff;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: #34495e;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            background: #9b59b6;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header .update-time {
+            color: #ecf0f1;
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .input-section {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .input-label {
+            color: #bdc3c7;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .amount-input {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 48px;
+            font-weight: bold;
+            text-align: center;
+            width: 100%;
+            outline: none;
+            margin-bottom: 20px;
+        }
+        
+        .currency-selector {
+            background: #2c3e50;
+            border: 1px solid #34495e;
+            border-radius: 8px;
+            color: #fff;
+            padding: 10px;
+            font-size: 16px;
+            width: 100%;
+            outline: none;
+        }
+        
+        .currency-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .currency-item {
+            background: #2c3e50;
+            margin: 10px;
+            border-radius: 12px;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid #34495e;
+        }
+        
+        .currency-left {
+            display: flex;
+            align-items: center;
+        }
+        
+        .flag {
+            width: 32px;
+            height: 24px;
+            border-radius: 4px;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .currency-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .currency-code {
+            color: #fff;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .currency-name {
+            color: #95a5a6;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+        
+        .currency-value {
+            color: #3498db;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .error {
+            text-align: center;
+            padding: 40px 20px;
+            color: #e74c3c;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>fx_rate_converter</h1>
+            <div class="update-time" id="updateTime">匯率更新: 2025年10月3日 下午02:20</div>
+        </div>
+
+        <div class="input-section">
+            <div class="input-label">基準金額</div>
+            <input type="number" class="amount-input" id="amountInput" value="100" min="0">
+            <select class="currency-selector" id="baseCurrencySelect"></select>
+        </div>
+
+        <div class="currency-list" id="currencyList"></div>
+    </div>
+
+    <script>
+        let baseCurrency = 'HKD';
+        let rates = {};
+
+        const supportedCurrencies = [
+            { code: 'USD', name: 'US Dollar', flag: '🇺🇸', nameChinese: '美元' },
+            { code: 'EUR', name: 'Euro', flag: '🇪🇺', nameChinese: '歐元' },
+            { code: 'JPY', name: 'Japanese Yen', flag: '🇯🇵', nameChinese: '日圓' },
+            { code: 'CNY', name: 'Chinese Yuan', flag: '🇨🇳', nameChinese: '人民幣' },
+            { code: 'AUD', name: 'Australian Dollar', flag: '🇦🇺', nameChinese: '澳元' },
+            { code: 'CAD', name: 'Canadian Dollar', flag: '🇨🇦', nameChinese: '加元' },
+            { code: 'GBP', name: 'British Pound Sterling', flag: '🇬🇧', nameChinese: '英鎊' },
+            { code: 'CHF', name: 'Swiss Franc', flag: '🇨🇭', nameChinese: '瑞士法郎' },
+            { code: 'SGD', name: 'Singapore Dollar', flag: '🇸🇬', nameChinese: '新加坡元' },
+            { code: 'HKD', name: 'Hong Kong Dollar', flag: '🇭🇰', nameChinese: '港幣' },
+            { code: 'INR', name: 'Indian Rupee', flag: '🇮🇳', nameChinese: '印度盧比' },
+            { code: 'KRW', name: 'South Korean Won', flag: '🇰🇷', nameChinese: '韓圓' },
+            { code: 'THB', name: 'Thai Baht', flag: '🇹🇭', nameChinese: '泰銖' },
+            { code: 'MYR', name: 'Malaysian Ringgit', flag: '🇲🇾', nameChinese: '馬來西亞令吉' },
+            { code: 'PHP', name: 'Philippine Peso', flag: '🇵🇭', nameChinese: '菲律賓披索' },
+            { code: 'IDR', name: 'Indonesian Rupiah', flag: '🇮🇩', nameChinese: '印尼盾' },
+            { code: 'VND', name: 'Vietnamese Dong', flag: '🇻🇳', nameChinese: '越南盾' },
+            { code: 'TWD', name: 'New Taiwan Dollar', flag: '🇹🇼', nameChinese: '新台幣' },
+            { code: 'NZD', name: 'New Zealand Dollar', flag: '🇳🇿', nameChinese: '紐元' },
+            { code: 'NOK', name: 'Norwegian Krone', flag: '🇳🇴', nameChinese: '挪威克朗' },
+            { code: 'SEK', name: 'Swedish Krona', flag: '🇸🇪', nameChinese: '瑞典克朗' },
+            { code: 'DKK', name: 'Danish Krone', flag: '🇩🇰', nameChinese: '丹麥克朗' },
+            { code: 'PLN', name: 'Polish Zloty', flag: '🇵🇱', nameChinese: '波蘭茲羅提' },
+            { code: 'CZK', name: 'Czech Koruna', flag: '🇨🇿', nameChinese: '捷克克朗' },
+            { code: 'HUF', name: 'Hungarian Forint', flag: '🇭🇺', nameChinese: '匈牙利福林' },
+            { code: 'TRY', name: 'Turkish Lira', flag: '🇹🇷', nameChinese: '土耳其里拉' },
+            { code: 'RUB', name: 'Russian Ruble', flag: '🇷🇺', nameChinese: '俄羅斯盧布' },
+            { code: 'BRL', name: 'Brazilian Real', flag: '🇧🇷', nameChinese: '巴西雷亞爾' },
+            { code: 'MXN', name: 'Mexican Peso', flag: '🇲🇽', nameChinese: '墨西哥披索' },
+            { code: 'ARS', name: 'Argentine Peso', flag: '🇦🇷', nameChinese: '阿根廷披索' },
+            { code: 'CLP', name: 'Chilean Peso', flag: '🇨🇱', nameChinese: '智利披索' },
+            { code: 'ZAR', name: 'South African Rand', flag: '🇿🇦', nameChinese: '南非蘭特' },
+            { code: 'EGP', name: 'Egyptian Pound', flag: '🇪🇬', nameChinese: '埃及鎊' },
+            { code: 'NGN', name: 'Nigerian Naira', flag: '🇳🇬', nameChinese: '奈及利亞奈拉' },
+            { code: 'MAD', name: 'Moroccan Dirham', flag: '🇲🇦', nameChinese: '摩洛哥迪拉姆' },
+            { code: 'AED', name: 'United Arab Emirates Dirham', flag: '🇦🇪', nameChinese: '阿聯酋迪拉姆' },
+            { code: 'SAR', name: 'Saudi Riyal', flag: '🇸🇦', nameChinese: '沙特里亞爾' },
+            { code: 'QAR', name: 'Qatari Riyal', flag: '🇶🇦', nameChinese: '卡塔爾里亞爾' },
+            { code: 'KWD', name: 'Kuwaiti Dinar', flag: '🇰🇼', nameChinese: '科威特第納爾' },
+            { code: 'BHD', name: 'Bahraini Dinar', flag: '🇧🇭', nameChinese: '巴林第納爾' },
+            { code: 'JOD', name: 'Jordanian Dinar', flag: '🇯🇴', nameChinese: '約旦第納爾' },
+            { code: 'LBP', name: 'Lebanese Pound', flag: '🇱🇧', nameChinese: '黎巴嫩鎊' },
+            { code: 'ILS', name: 'Israeli New Shekel', flag: '🇮🇱', nameChinese: '以色列新謝克爾' },
+            { code: 'PKR', name: 'Pakistani Rupee', flag: '🇵🇰', nameChinese: '巴基斯坦盧比' },
+            { code: 'LKR', name: 'Sri Lankan Rupee', flag: '🇱🇰', nameChinese: '斯里蘭卡盧比' },
+            { code: 'BGN', name: 'Bulgarian Lev', flag: '🇧🇬', nameChinese: '保加利亞列弗' },
+            { code: 'RON', name: 'Romanian Leu', flag: '🇷🇴', nameChinese: '羅馬尼亞列伊' },
+            { code: 'HRK', name: 'Croatian Kuna', flag: '🇭🇷', nameChinese: '克羅地亞庫納' },
+            { code: 'ISK', name: 'Icelandic Króna', flag: '🇮🇸', nameChinese: '冰島克朗' }
+        ];
+
+        const amountInput = document.getElementById('amountInput');
+        const baseCurrencySelect = document.getElementById('baseCurrencySelect');
+        const currencyList = document.getElementById('currencyList');
+        const updateTime = document.getElementById('updateTime');
+
+        function initBaseCurrencySelector() {
+            supportedCurrencies.forEach(currency => {
+                const option = document.createElement('option');
+                option.value = currency.code;
+                option.textContent = `${currency.name} (${currency.code})`;
+                if (currency.code === baseCurrency) {
+                    option.selected = true;
+                }
+                baseCurrencySelect.appendChild(option);
+            });
+        }
+
+        async function fetchRates() {
+            try {
+                updateTime.textContent = '匯率更新中...';
+                
+                const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${baseCurrency}`);
+                const data = await response.json();
+                
+                rates = data.rates;
+                rates[baseCurrency] = 1;
+                
+                const now = new Date().toLocaleString('zh-HK', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                updateTime.textContent = `匯率更新: ${now}`;
+                renderCurrencyList();
+                
+            } catch (error) {
+                console.error('獲取匯率失敗:', error);
+                currencyList.innerHTML = '<div class="error">無法載入匯率資料<br>請檢查網路連接</div>';
+            }
+        }
+
+        function renderCurrencyList() {
+            const amount = parseFloat(amountInput.value) || 0;
+            let html = '';
+
+            const filteredCurrencies = supportedCurrencies.filter(currency => currency.code !== baseCurrency);
+
+            filteredCurrencies.forEach(currency => {
+                const rate = rates[currency.code];
+                if (rate) {
+                    const convertedAmount = amount * rate;
+                    
+                    let displayValue;
+                    switch(currency.code) {
+                        case 'USD':
+                        case 'CAD':
+                        case 'AUD':
+                        case 'NZD':
+                        case 'SGD':
+                        case 'HKD':
+                            displayValue = convertedAmount.toFixed(2);
+                            break;
+                        case 'JPY':
+                        case 'KRW':
+                        case 'IDR':
+                        case 'VND':
+                            displayValue = Math.round(convertedAmount).toLocaleString();
+                            break;
+                        case 'BHD':
+                        case 'KWD':
+                        case 'JOD':
+                            displayValue = convertedAmount.toFixed(3);
+                            break;
+                        default:
+                            displayValue = convertedAmount.toFixed(2);
+                    }
+
+                    html += `
+                        <div class="currency-item">
+                            <div class="currency-left">
+                                <div class="flag">${currency.flag}</div>
+                                <div class="currency-info">
+                                    <div class="currency-code">${currency.code} ${currency.nameChinese}</div>
+                                    <div class="currency-name">${currency.name}</div>
+                                </div>
+                            </div>
+                            <div class="currency-value">${displayValue}</div>
+                        </div>
+                    `;
+                }
+            });
+
+            currencyList.innerHTML = html;
+        }
+
+        amountInput.addEventListener('input', renderCurrencyList);
+        
+        baseCurrencySelect.addEventListener('change', (e) => {
+            baseCurrency = e.target.value;
+            fetchRates();
+        });
+
+        initBaseCurrencySelector();
+        fetchRates();
+
+        setInterval(fetchRates, 300000);
+    </script>
+
+</body>
