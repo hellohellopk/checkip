@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>即時匯率計算器 (最終版)</title>
+    <title>FX Glass Converter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,124 +11,171 @@
     <style>
         body {
             font-family: 'Inter', 'Noto Sans TC', sans-serif;
-            background-color: #111827; /* bg-gray-900 */
+            background: #000;
+            color: #E5E7EB; /* text-gray-200 */
         }
-        /* Use Fira Code for mono elements */
+        .bg-pattern {
+            background-image: url('https://www.transparenttextures.com/patterns/cubes.png');
+            background-color: #0F172A;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: -2;
+        }
+        .bg-gradient-blur {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background: radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.3), transparent 40%),
+                        radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.3), transparent 40%);
+            filter: blur(100px);
+            z-index: -1;
+        }
         .font-mono {
             font-family: 'Fira Code', monospace;
         }
-        /* Custom focus ring color */
-        .focus\:ring-emerald-500:focus {
+        .glass-card {
+            background: rgba(30, 41, 59, 0.5); /* bg-slate-800/50 */
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem; /* rounded-2xl */
+        }
+        .focus\:ring-cyan-500:focus {
             --tw-ring-opacity: 1;
-            --tw-ring-color: #10B981 !important; /* emerald-500 */
-        }
-        /* Blinking cursor effect */
-        .blinking-cursor {
-            border-right: 2px solid #10B981;
-            animation: blink 1s step-end infinite;
-        }
-        @keyframes blink {
-            from, to { border-color: transparent }
-            50% { border-color: #10B981; }
+            --tw-ring-color: #06b6d4 !important; /* cyan-500 */
         }
     </style>
 </head>
-<body class="text-gray-200">
+<body>
+    <div class="bg-pattern"></div>
+    <div class="bg-gradient-blur"></div>
 
-    <div class="container mx-auto max-w-lg p-4 sm:p-6">
-        <main class="bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl shadow-emerald-900/20 border border-gray-700 overflow-hidden">
-            
-            <!-- Window Title Bar -->
-            <div class="h-10 bg-gray-900/80 flex items-center px-4 border-b border-gray-700">
-                <div class="flex space-x-2">
-                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                </div>
-                <p class="text-center text-gray-400 text-sm flex-grow font-mono">fx_rate_converter</p>
+    <div class="container mx-auto max-w-2xl p-4 sm:p-6 relative z-10">
+
+        <!-- Header with Logo and API Selector -->
+        <header class="flex items-center justify-between mb-4 px-2">
+            <div class="flex items-center space-x-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+                <h1 class="text-2xl font-bold text-white">FX Converter</h1>
             </div>
 
+            <!-- API Selector Dropdown -->
+            <div class="flex items-center space-x-2">
+                <label for="api-selector" class="text-xs text-gray-400 font-mono">API:</label>
+                <select id="api-selector" class="glass-card px-3 py-2 text-sm text-white font-mono focus:ring-2 focus:ring-cyan-500 outline-none">
+                    <option value="fxratesapi">FXRatesAPI</option>
+                    <option value="exchangerate">ExchangeRate-API</option>
+                    <option value="openexchange">Open Exchange Rates</option>
+                </select>
+            </div>
+        </header>
+
+        <main class="glass-card shadow-2xl overflow-hidden">
+
             <!-- Header Section with Input -->
-            <div class="text-center p-6 border-b border-gray-700">
-                <label for="base-amount-input" class="text-sm text-emerald-400 mb-2 block tracking-wider">基準金額</label>
-                <div class="relative inline-block">
-                    <input type="number" id="base-amount-input" value="100" class="text-4xl font-semibold text-white tracking-tighter text-center w-full bg-transparent focus:outline-none focus:ring-0 border-none p-0 font-mono">
-                    <span class="blinking-cursor absolute top-0 right-[-10px] h-full"></span>
-                </div>
+            <div class="text-center p-5 border-b border-white/10">
+                <label for="base-amount-input" class="text-sm text-cyan-400 mb-2 block tracking-wider">基準金額</label>
+                <input type="number" id="base-amount-input" value="100" class="text-4xl font-semibold text-white tracking-tighter text-center w-full bg-transparent focus:outline-none focus:ring-0 border-none p-0 font-mono">
             </div>
 
             <!-- Currency List (Single Column) -->
-            <div id="currency-list" class="grid grid-cols-1 gap-3 p-6">
+            <div id="currency-list" class="grid grid-cols-1 gap-2 p-4">
                 <!-- Loading State -->
                 <p class="col-span-1 text-center text-gray-500 font-mono">Initializing...</p>
             </div>
 
             <!-- Separator -->
-            <div class="border-t border-gray-700"></div>
+            <div class="border-t border-white/10"></div>
 
             <!-- Global Converter Section -->
-            <div class="p-6 bg-gray-900/50">
-                <h3 class="text-center font-bold text-emerald-400 mb-4 tracking-wider">全球貨幣轉換</h3>
-                <div class="grid grid-cols-1 gap-4">
-                    <input type="number" id="global-amount" value="100" class="w-full p-3 bg-gray-800 border border-gray-600 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-white font-mono">
+            <div class="p-4">
+                <h3 class="text-center font-bold text-cyan-400 mb-4 tracking-wider">全球貨幣轉換</h3>
+                <div class="grid grid-cols-1 gap-3">
+                    <input type="number" id="global-amount" value="100" class="w-full p-3 glass-card focus:ring-2 focus:ring-cyan-500 outline-none text-white font-mono">
                     <div class="flex items-center gap-3">
-                        <select id="from-currency" class="w-full p-3 bg-gray-800 border border-gray-600 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-white font-mono"></select>
-                        <span class="text-emerald-400">→</span>
-                        <select id="to-currency" class="w-full p-3 bg-gray-800 border border-gray-600 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-white font-mono"></select>
+                        <select id="from-currency" class="w-full p-3 glass-card focus:ring-2 focus:ring-cyan-500 outline-none text-white font-mono"></select>
+                        <span class="text-cyan-400">→</span>
+                        <select id="to-currency" class="w-full p-3 glass-card focus:ring-2 focus:ring-cyan-500 outline-none text-white font-mono"></select>
                     </div>
-                    <div id="global-result-container" class="text-right p-3 bg-gray-800 rounded-md border border-gray-700" style="display: none;">
+                    <div id="global-result-container" class="text-right p-3 glass-card" style="display: none;">
                         <p id="global-result" class="text-xl font-semibold text-white font-mono"></p>
                     </div>
                 </div>
             </div>
         </main>
-        
+
         <footer class="text-center mt-6">
             <p id="timestamp" class="text-xs text-gray-500 font-mono"></p>
         </footer>
     </div>
 
     <script>
+        // API Configuration
+        const API_CONFIGS = {
+            fxratesapi: {
+                name: 'FXRatesAPI',
+                key: 'fxr_live_38ad3c55b228cc844e71347bdb45cb3c63df',
+                buildUrl: (key, codes) => `https://api.fxratesapi.com/latest?api_key=${key}&base=USD&currencies=${codes.join(',')}`,
+                parseResponse: (data) => ({
+                    success: data.success,
+                    rates: data.rates,
+                    timestamp: data.timestamp
+                })
+            },
+            exchangerate: {
+                name: 'ExchangeRate-API',
+                key: '0d5edd3dbe453790b0bcc4d6', // User needs to replace this
+                buildUrl: (key, codes) => `https://v6.exchangerate-api.com/v6/${key}/latest/USD`,
+                parseResponse: (data) => ({
+                    success: data.result === 'success',
+                    rates: data.conversion_rates,
+                    timestamp: data.time_last_update_unix
+                })
+            },
+            openexchange: {
+                name: 'Open Exchange Rates',
+                key: '219fb31cd84b49acb19edb3cb5e7cdfd', // User needs to replace this
+                buildUrl: (key, codes) => `https://openexchangerates.org/api/latest.json?app_id=${key}`,
+                parseResponse: (data) => ({
+                    success: true,
+                    rates: data.rates,
+                    timestamp: data.timestamp
+                })
+            }
+        };
+
         document.addEventListener('DOMContentLoaded', async () => {
-            const apiKey = 'fxr_live_38ad3c55b228cc844e71347bdb45cb3c63df';
-            
             const currencyInfo = {
-                USD: { name: '美元', engName: 'US Dollar', code: 'us', emoji: '🇺🇸' },
-                EUR: { name: '歐元', engName: 'Euro', code: 'eu', emoji: '🇪🇺' },
-                JPY: { name: '日元', engName: 'Japanese Yen', code: 'jp', emoji: '🇯🇵' },
-                GBP: { name: '英鎊', engName: 'British Pound', code: 'gb', emoji: '🇬🇧' },
-                CNY: { name: '人民幣', engName: 'Chinese Yuan', code: 'cn', emoji: '🇨🇳' },
-                AUD: { name: '澳元', engName: 'Australian Dollar', code: 'au', emoji: '🇦🇺' },
-                CAD: { name: '加拿大元', engName: 'Canadian Dollar', code: 'ca', emoji: '🇨🇦' },
-                CHF: { name: '瑞士法郎', engName: 'Swiss Franc', code: 'ch', emoji: '🇨🇭' },
-                HKD: { name: '港幣', engName: 'Hong Kong Dollar', code: 'hk', emoji: '🇭🇰' },
-                SGD: { name: '新加坡元', engName: 'Singapore Dollar', code: 'sg', emoji: '🇸🇬' },
-                SEK: { name: '瑞典克朗', engName: 'Swedish Krona', code: 'se', emoji: '🇸🇪' },
-                KRW: { name: '韓元', engName: 'South Korean Won', code: 'kr', emoji: '🇰🇷' },
-                NOK: { name: '挪威克朗', engName: 'Norwegian Krone', code: 'no', emoji: '🇳🇴' },
-                NZD: { name: '紐西蘭元', engName: 'New Zealand Dollar', code: 'nz', emoji: '🇳🇿' },
-                INR: { name: '印度盧比', engName: 'Indian Rupee', code: 'in', emoji: '🇮🇳' },
-                MXN: { name: '墨西哥比索', engName: 'Mexican Peso', code: 'mx', emoji: '🇲🇽' },
-                TWD: { name: '新台幣', engName: 'New Taiwan Dollar', code: 'tw', emoji: '🇹🇼' },
-                ZAR: { name: '南非蘭特', engName: 'South African Rand', code: 'za', emoji: '🇿🇦' },
-                BRL: { name: '巴西雷亞爾', engName: 'Brazilian Real', code: 'br', emoji: '🇧🇷' },
-                TRY: { name: '土耳其里拉', engName: 'Turkish Lira', code: 'tr', emoji: '🇹🇷' },
-                NGN: { name: '奈及利亞奈拉', engName: 'Nigerian Naira', code: 'ng', emoji: '🇳🇬' },
-                THB: { name: '泰銖', engName: 'Thai Baht', code: 'th', emoji: '🇹🇭' },
-                PHP: { name: '菲律賓比索', engName: 'Philippine Peso', code: 'ph', emoji: '🇵🇭' },
-                VND: { name: '越南盾', engName: 'Vietnamese Dong', code: 'vn', emoji: '🇻🇳' },
-                IDR: { name: '印尼盾', engName: 'Indonesian Rupiah', code: 'id', emoji: '🇮🇩' },
-                MYR: { name: '馬來西亞令吉', engName: 'Malaysian Ringgit', code: 'my', emoji: '🇲🇾' },
+                USD: { name: '美元', engName: 'US Dollar', code: 'us', emoji: '🇺🇸' }, EUR: { name: '歐元', engName: 'Euro', code: 'eu', emoji: '🇪🇺' },
+                JPY: { name: '日元', engName: 'Japanese Yen', code: 'jp', emoji: '🇯🇵' }, GBP: { name: '英鎊', engName: 'British Pound', code: 'gb', emoji: '🇬🇧' },
+                CNY: { name: '人民幣', engName: 'Chinese Yuan', code: 'cn', emoji: '🇨🇳' }, AUD: { name: '澳元', engName: 'Australian Dollar', code: 'au', emoji: '🇦🇺' },
+                CAD: { name: '加拿大元', engName: 'Canadian Dollar', code: 'ca', emoji: '🇨🇦' }, CHF: { name: '瑞士法郎', engName: 'Swiss Franc', code: 'ch', emoji: '🇨🇭' },
+                HKD: { name: '港幣', engName: 'Hong Kong Dollar', code: 'hk', emoji: '🇭🇰' }, SGD: { name: '新加坡元', engName: 'Singapore Dollar', code: 'sg', emoji: '🇸🇬' },
+                SEK: { name: '瑞典克朗', engName: 'Swedish Krona', code: 'se', emoji: '🇸🇪' }, KRW: { name: '韓元', engName: 'South Korean Won', code: 'kr', emoji: '🇰🇷' },
+                NOK: { name: '挪威克朗', engName: 'Norwegian Krone', code: 'no', emoji: '🇳🇴' }, NZD: { name: '紐西蘭元', engName: 'New Zealand Dollar', code: 'nz', emoji: '🇳🇿' },
+                INR: { name: '印度盧比', engName: 'Indian Rupee', code: 'in', emoji: '🇮🇳' }, MXN: { name: '墨西哥比索', engName: 'Mexican Peso', code: 'mx', emoji: '🇲🇽' },
+                TWD: { name: '新台幣', engName: 'New Taiwan Dollar', code: 'tw', emoji: '🇹🇼' }, ZAR: { name: '南非蘭特', engName: 'South African Rand', code: 'za', emoji: '🇿🇦' },
+                BRL: { name: '巴西雷亞爾', engName: 'Brazilian Real', code: 'br', emoji: '🇧🇷' }, TRY: { name: '土耳其里拉', engName: 'Turkish Lira', code: 'tr', emoji: '🇹🇷' },
+                NGN: { name: '奈及利亞奈拉', engName: 'Nigerian Naira', code: 'ng', emoji: '🇳🇬' }, THB: { name: '泰銖', engName: 'Thai Baht', code: 'th', emoji: '🇹🇭' },
+                PHP: { name: '菲律賓比索', engName: 'Philippine Peso', code: 'ph', emoji: '🇵🇭' }, VND: { name: '越南盾', engName: 'Vietnamese Dong', code: 'vn', emoji: '🇻🇳' },
+                IDR: { name: '印尼盾', engName: 'Indonesian Rupiah', code: 'id', emoji: '🇮🇩' }, MYR: { name: '馬來西亞令吉', engName: 'Malaysian Ringgit', code: 'my', emoji: '🇲🇾' },
                 RUB: { name: '俄羅斯盧布', engName: 'Russian Ruble', code: 'ru', emoji: '🇷🇺' }
             };
 
             const topSectionCodes = ['USD', 'JPY', 'TRY', 'EUR', 'CNY', 'TWD', 'INR', 'GBP', 'AUD', 'CAD', 'SGD', 'KRW', 'NGN', 'HKD'];
             const allNeededCodes = [...new Set([...topSectionCodes, ...Object.keys(currencyInfo)])];
-            const apiUrl = `https://api.fxratesapi.com/latest?api_key=${apiKey}&base=USD&currencies=${allNeededCodes.join(',')}`;
-            
+
             const listElement = document.getElementById('currency-list');
             const amountInput = document.getElementById('base-amount-input');
             const timestampEl = document.getElementById('timestamp');
+            const apiSelector = document.getElementById('api-selector');
 
             const globalAmountInput = document.getElementById('global-amount');
             const fromCurrencySelect = document.getElementById('from-currency');
@@ -136,36 +183,48 @@
             const globalResultEl = document.getElementById('global-result');
             const globalResultContainer = document.getElementById('global-result-container');
 
-            async function fetchRates() {
+            let currentRatesVsUsd = null;
+
+            async function fetchRates(apiType) {
+                const config = API_CONFIGS[apiType];
+                const apiUrl = config.buildUrl(config.key, allNeededCodes);
+
                 try {
+                    listElement.innerHTML = '<p class="col-span-1 text-center text-gray-500 font-mono">Loading rates...</p>';
+
                     const response = await fetch(apiUrl);
                     if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                     const data = await response.json();
-                    if (!data.success) throw new Error(data.error?.info || 'API Error');
-                    
-                    const updateTime = new Date(data.timestamp * 1000);
-                    timestampEl.textContent = `[RATES_UPDATED]: ${updateTime.toISOString()}`;
-                    
-                    return data.rates;
+
+                    const parsed = config.parseResponse(data);
+                    if (!parsed.success) throw new Error('API Error');
+
+                    const updateTime = new Date(parsed.timestamp * 1000);
+                    timestampEl.textContent = `[${config.name}] RATES_UPDATED: ${updateTime.toISOString()}`;
+
+                    return parsed.rates;
                 } catch (error) {
                     console.error('Fetch Rates Error:', error);
-                    listElement.innerHTML = `<p class="col-span-1 text-center text-red-500 font-mono">Error: Failed to load live rates.</p>`;
-                    timestampEl.textContent = '[ERROR]: CONNECTION_FAILED';
+                    listElement.innerHTML = `<p class="col-span-1 text-center text-red-500 font-mono">Error: Failed to load rates from ${config.name}</p>`;
+                    timestampEl.textContent = `[${config.name}] ERROR: CONNECTION_FAILED`;
                     return null;
                 }
             }
 
-            const ratesVsUsd = await fetchRates();
+            async function initializeConverter() {
+                const selectedApi = apiSelector.value;
+                currentRatesVsUsd = await fetchRates(selectedApi);
 
-            if (ratesVsUsd) {
-                const hkdPerUsd = ratesVsUsd['HKD'];
-                const ratesVsHkd = {};
-                for (const code in ratesVsUsd) {
-                    ratesVsHkd[code] = ratesVsUsd[code] / hkdPerUsd;
+                if (currentRatesVsUsd) {
+                    const hkdPerUsd = currentRatesVsUsd['HKD'];
+                    const ratesVsHkd = {};
+                    for (const code in currentRatesVsUsd) {
+                        ratesVsHkd[code] = currentRatesVsUsd[code] / hkdPerUsd;
+                    }
+
+                    setupTopCalculator(ratesVsHkd);
+                    setupGlobalConverter(currentRatesVsUsd);
                 }
-
-                setupTopCalculator(ratesVsHkd);
-                setupGlobalConverter(ratesVsUsd);
             }
 
             function setupTopCalculator(rates) {
@@ -187,33 +246,38 @@
                         if (!info) return;
 
                         const item = document.createElement('div');
-                        const isPriority = priorityCodes.includes(code);
-                        item.className = `flex items-center space-x-4 p-4 rounded-lg bg-gray-900/50 border ${isPriority ? 'border-emerald-500/30' : 'border-gray-700'}`;
-                        
-                        const flagUrl = `https://flagcdn.com/w40/${info.code}.png`;
+                        item.className = `glass-card flex items-center space-x-4 p-3`;
+
+                        const flagUrl = `https://flagcdn.com/w80/${info.code}.png`;
 
                         item.innerHTML = `
-                            <img src="${flagUrl}" alt="${info.name}" class="w-10 h-10 object-cover rounded-full shadow-lg flex-shrink-0">
+                            <img src="${flagUrl}" alt="${info.name}" class="w-10 h-10 object-cover rounded-full shadow-lg flex-shrink-0 border-2 border-white/20">
                             <div class="flex-grow text-left overflow-hidden">
-                                <p class="font-semibold text-white">
-                                    <span class="font-mono">${code}</span>
-                                    <span class="text-gray-400 text-sm">${info.name}</span>
-                                </p>
-                                <p class="text-2xl font-semibold text-emerald-400 font-mono mt-1">
+                                <div class="flex justify-between items-baseline">
+                                    <p class="font-semibold text-white truncate">
+                                        <span class="font-mono text-base">${code}</span>
+                                        <span class="text-gray-300 text-sm">${info.name}</span>
+                                    </p>
+                                    <p class="text-xs text-gray-400 truncate">${info.engName}</p>
+                                </div>
+                                <p class="text-2xl font-semibold text-cyan-400 font-mono mt-1 text-left">
                                     ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </p>
-                                <p class="text-xs text-gray-500 truncate">${info.engName}</p>
                             </div>
                         `;
                         listElement.appendChild(item);
                     });
                 }
+                amountInput.removeEventListener('input', updateList);
                 amountInput.addEventListener('input', updateList);
                 updateList();
             }
 
             function setupGlobalConverter(rates) {
                 const currencyCodes = Object.keys(currencyInfo).sort();
+
+                fromCurrencySelect.innerHTML = '';
+                toCurrencySelect.innerHTML = '';
 
                 currencyCodes.forEach(code => {
                     const info = currencyInfo[code];
@@ -246,15 +310,22 @@
                     globalResultContainer.style.display = 'block';
                 }
 
+                globalAmountInput.removeEventListener('input', convertGlobal);
+                fromCurrencySelect.removeEventListener('change', convertGlobal);
+                toCurrencySelect.removeEventListener('change', convertGlobal);
+
                 globalAmountInput.addEventListener('input', convertGlobal);
                 fromCurrencySelect.addEventListener('change', convertGlobal);
                 toCurrencySelect.addEventListener('change', convertGlobal);
                 convertGlobal();
             }
+
+            // API Selector Change Event
+            apiSelector.addEventListener('change', initializeConverter);
+
+            // Initial Load
+            await initializeConverter();
         });
     </script>
 </body>
 </html>
-
-
-
