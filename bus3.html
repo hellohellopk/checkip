@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚌 巴士到站時間 - 宏景 / 德愛</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 10px;
+            min-height: 100vh;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2d2d30 0%, #23262b 100%);
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            border: 1px solid #3e3e42;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .bus-icon {
+            font-size: 24px;
+        }
+
+        .title-text {
+            font-size: 14px;
+            font-weight: 600;
+            background: linear-gradient(90deg, #ff6b6b, #f39c12, #f1c40f, #2ecc71, #3498db);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 0.5px;
+        }
+
+        .last-update {
+            font-size: 11px;
+            color: #999;
+            font-weight: 400;
+            margin-left: 12px;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: #fff;
+            border: none;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);
+        }
+
+        .refresh-btn:hover {
+            background: linear-gradient(135deg, #5dade2, #3498db);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .refresh-btn:active {
+            transform: translateY(0);
+        }
+
+        .refresh-btn:disabled {
+            background: #555;
+            box-shadow: none;
+            cursor: not-allowed;
+            animation: rotating 1s linear infinite;
+        }
+
+        @keyframes rotating {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .refresh-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .station-group {
+            margin-bottom: 16px;
+        }
+
+        .station-header {
+            background: linear-gradient(135deg, #2d3139 0%, #25282e 100%);
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 4px solid transparent;
+            border-image: linear-gradient(180deg, #ff6b6b, #f39c12, #f1c40f, #2ecc71, #3498db) 1;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .station-name {
+            font-size: 13px;
+            font-weight: 600;
+            background: linear-gradient(90deg, #ff6b6b, #f39c12, #2ecc71);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 0.3px;
+        }
+
+        .station-name::before {
+            content: "▸";
+            margin-right: 6px;
+            color: #858585;
+            -webkit-text-fill-color: #858585;
+        }
+
+        .bus-item {
+            background: linear-gradient(135deg, #2a2d35 0%, #23262b 100%);
+            margin-bottom: 6px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid #3e3e42;
+            transition: all 0.3s ease;
+            height: 68px;
+            min-height: 68px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .bus-item:hover {
+            background: linear-gradient(135deg, #2d3139 0%, #25282e 100%);
+            border-color: rgba(52, 152, 219, 0.5);
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        .bus-left {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* 路線號碼顏色 - 彩虹配色 (無陰影) */
+        .route-number {
+            font-size: 32px;
+            font-weight: 700;
+            width: 2.5cm;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            flex-shrink: 0;
+            letter-spacing: -1px;
+            text-align: left;
+        }
+
+        /* 116號 - 紅色 */
+        .route-116 { color: #ff6b6b; }
+        
+        /* 3D號 - 橙色 */
+        .route-3D { color: #f39c12; }
+        
+        /* 3B號 - 黃色 */
+        .route-3B { color: #f1c40f; }
+        
+        /* 3M號 - 綠色 */
+        .route-3M { color: #2ecc71; }
+
+        .route-info {
+            margin-left: 0;
+            min-width: 0;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        .destination {
+            font-size: 20px;
+            color: #d4d4d4;
+            font-weight: 400;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: 'PingFang HK', 'Microsoft JhengHei', sans-serif;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            padding-left: 0;
+        }
+
+        .eta-info {
+            text-align: right;
+            flex-shrink: 0;
+            margin-left: 12px;
+            min-width: 90px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .eta-time {
+            font-size: 18px;
+            font-weight: 600;
+            color: #3498db;
+            white-space: nowrap;
+            min-width: 65px;
+            display: inline-block;
+        }
+
+        .eta-time.arriving {
+            color: #f39c12;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .eta-time.no-data {
+            font-size: 13px;
+            color: #858585;
+        }
+
+        .eta-next {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+            font-size: 14px;
+        }
+
+        .loading::before {
+            content: "⏳";
+            font-size: 32px;
+            display: block;
+            margin-bottom: 12px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.1); }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 8px;
+            }
+
+            .route-number {
+                font-size: 28px;
+                width: 2cm;
+            }
+            
+            .destination {
+                font-size: 18px;
+            }
+            
+            .eta-time {
+                font-size: 16px;
+                min-width: 60px;
+            }
+
+            .eta-info {
+                min-width: 80px;
+            }
+
+            .bus-item {
+                padding: 10px 8px;
+                height: 64px;
+                min-height: 64px;
+            }
+
+            .eta-next {
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <span class="bus-icon">🚌</span>
+            <span class="title-text">巴士到站時間</span>
+            <span class="last-update" id="last-update">--:--</span>
+        </div>
+        <button class="refresh-btn" id="refresh-btn" onclick="manualRefresh()" title="更新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+            </svg>
+        </button>
+    </div>
+
+    <div id="bus-container">
+        <div class="loading">按右上角按鈕載入數據</div>
+    </div>
+
+    <script>
+        const stationGroups = [
+            {
+                stationName: '宏景花園 (往慈雲山方向)',
+                routes: [
+                    {
+                        route: '116',
+                        operators: ['kmb', 'ctb'],
+                        kmb_stop: 'ACE23D880D07ABB1',
+                        ctb_stop: '001710',
+                        kmb_dir: 'I',
+                        ctb_dir: 'O',
+                        destinations: '慈雲山(中)',
+                        stop_name: '宏景花園'
+                    },
+                    {
+                        route: '3D',
+                        operators: ['kmb'],
+                        kmb_stop: 'ACE23D880D07ABB1',
+                        kmb_dir: 'I',
+                        destinations: '慈雲山(中)',
+                        stop_name: '宏景花園'
+                    },
+                    {
+                        route: '3B',
+                        operators: ['kmb'],
+                        kmb_stop: 'ACE23D880D07ABB1',
+                        kmb_dir: 'I',
+                        destinations: '慈雲山(中)',
+                        stop_name: '宏景花園'
+                    },
+                    {
+                        route: '3M',
+                        operators: ['kmb'],
+                        kmb_stop: 'ACE23D880D07ABB1',
+                        kmb_dir: 'I',
+                        destinations: '慈雲山(中)',
+                        stop_name: '宏景花園'
+                    }
+                ]
+            },
+            {
+                stationName: '德愛中學 (往其他地方)',
+                routes: [
+                    {
+                        route: '3B',
+                        operators: ['kmb'],
+                        kmb_stop: 'E778E67CBC095B0C',
+                        kmb_dir: 'O',
+                        destinations: '紅磡碼頭',
+                        stop_name: '德愛中學'
+                    },
+                    {
+                        route: '3M',
+                        operators: ['kmb'],
+                        kmb_stop: 'A4C9136D18013389',
+                        kmb_dir: 'O',
+                        destinations: '彩雲',
+                        stop_name: '德愛中學'
+                    },
+                    {
+                        route: '116',
+                        operators: ['kmb', 'ctb'],
+                        kmb_stop: 'A4C9136D18013389',
+                        ctb_stop: '001703',
+                        kmb_dir: 'O',
+                        ctb_dir: 'I',
+                        destinations: '鰂魚涌',
+                        stop_name: '德愛中學'
+                    },
+                    {
+                        route: '3D',
+                        operators: ['kmb'],
+                        kmb_stop: 'A4C9136D18013389',
+                        kmb_dir: 'O',
+                        destinations: '觀塘(裕民坊)',
+                        stop_name: '德愛中學'
+                    }
+                ]
+            }
+        ];
+
+        let isLoading = false;
+
+        async function fetchKMBETA(stopId, route) {
+            try {
+                const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${stopId}/${route}/1`);
+                const data = await response.json();
+                return data.data || [];
+            } catch (error) {
+                console.error(`KMB API Error (${route}):`, error);
+                return [];
+            }
+        }
+
+        async function fetchCTBETA(stopId, route) {
+            try {
+                const response = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${stopId}/${route}`);
+                const data = await response.json();
+                return data.data || [];
+            } catch (error) {
+                console.error(`CTB API Error (${route}):`, error);
+                return [];
+            }
+        }
+
+        function getMinutesDiff(etaString) {
+            if (!etaString) return null;
+            const now = new Date();
+            const eta = new Date(etaString);
+            const diff = Math.round((eta - now) / 60000);
+            return diff;
+        }
+
+        async function process116Route(route) {
+            const kmbData = await fetchKMBETA(route.kmb_stop, route.route);
+            const ctbData = await fetchCTBETA(route.ctb_stop, route.route);
+
+            const kmbFiltered = kmbData.filter(bus => bus.dir === route.kmb_dir);
+            const ctbFiltered = ctbData.filter(bus => bus.dir === route.ctb_dir);
+
+            let allETA = [];
+
+            for (let i = 0; i < Math.min(3, kmbFiltered.length); i++) {
+                if (kmbFiltered[i].eta) {
+                    allETA.push({ eta: kmbFiltered[i].eta, operator: 'KMB' });
+                }
+            }
+
+            for (let i = 0; i < Math.min(3, ctbFiltered.length); i++) {
+                if (ctbFiltered[i].eta && ctbFiltered[i].eta !== '') {
+                    const rmk = ctbFiltered[i].rmk_tc || '';
+                    if (!rmk.includes('九巴時段')) {
+                        allETA.push({ eta: ctbFiltered[i].eta, operator: 'CTB' });
+                    }
+                }
+            }
+
+            allETA.sort((a, b) => new Date(a.eta) - new Date(b.eta));
+
+            return {
+                first: allETA[0] ? allETA[0].eta : null,
+                second: allETA[1] ? allETA[1].eta : null,
+                third: allETA[2] ? allETA[2].eta : null
+            };
+        }
+
+        async function processKMBRoute(route) {
+            const kmbData = await fetchKMBETA(route.kmb_stop, route.route);
+            const filtered = kmbData.filter(bus => bus.dir === route.kmb_dir);
+
+            let result = { first: null, second: null, third: null };
+            if (filtered.length > 0) {
+                result.first = filtered[0].eta;
+                result.second = filtered[1] ? filtered[1].eta : null;
+                result.third = filtered[2] ? filtered[2].eta : null;
+            }
+            return result;
+        }
+
+        async function renderBuses() {
+            const container = document.getElementById('bus-container');
+            const now = new Date();
+
+            document.getElementById('last-update').textContent = 
+                now.toLocaleTimeString('zh-HK', {hour: '2-digit', minute: '2-digit'});
+
+            container.innerHTML = '';
+
+            for (const group of stationGroups) {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'station-group';
+
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'station-header';
+                headerDiv.innerHTML = `<div class="station-name">${group.stationName}</div>`;
+                groupDiv.appendChild(headerDiv);
+
+                for (const route of group.routes) {
+                    let eta;
+
+                    if (route.route === '116') {
+                        eta = await process116Route(route);
+                    } else {
+                        eta = await processKMBRoute(route);
+                    }
+
+                    let firstMin = eta.first ? getMinutesDiff(eta.first) : null;
+                    let secondMin = eta.second ? getMinutesDiff(eta.second) : null;
+                    let thirdMin = eta.third ? getMinutesDiff(eta.third) : null;
+
+                    if (firstMin !== null && firstMin < 0) {
+                        firstMin = secondMin;
+                        secondMin = thirdMin;
+                        thirdMin = null;
+                    }
+                    if (firstMin !== null && firstMin < 0) {
+                        firstMin = secondMin;
+                        secondMin = null;
+                    }
+
+                    const busItem = document.createElement('div');
+                    busItem.className = 'bus-item';
+
+                    let firstEtaClass = '';
+                    let firstEtaText = '';
+                    
+                    if (firstMin === null) {
+                        firstEtaClass = 'no-data';
+                        firstEtaText = '---';
+                    } else if (firstMin < 0) {
+                        firstEtaClass = 'no-data';
+                        firstEtaText = '---';
+                    } else if (firstMin === 0) {
+                        firstEtaClass = 'arriving';
+                        firstEtaText = '即將到達';
+                    } else if (firstMin <= 2) {
+                        firstEtaClass = 'arriving';
+                        firstEtaText = `${firstMin}分鐘`;
+                    } else {
+                        firstEtaText = `${firstMin}分鐘`;
+                    }
+                    
+                    const secondEtaText = (secondMin && secondMin >= 0) ? `${secondMin}分鐘` : '';
+                    const thirdEtaText = (thirdMin && thirdMin >= 0) ? `${thirdMin}分鐘` : '';
+
+                    busItem.innerHTML = `
+                        <div class="bus-left">
+                            <div class="route-number route-${route.route}">${route.route}</div>
+                            <div class="route-info">
+                                <div class="destination">${route.destinations}</div>
+                            </div>
+                        </div>
+                        <div class="eta-info">
+                            <div class="eta-time ${firstEtaClass}">${firstEtaText}</div>
+                            ${secondEtaText ? `<div class="eta-next">${secondEtaText}</div>` : ''}
+                            ${thirdEtaText ? `<div class="eta-next">${thirdEtaText}</div>` : ''}
+                        </div>
+                    `;
+
+                    groupDiv.appendChild(busItem);
+                }
+
+                container.appendChild(groupDiv);
+            }
+        }
+
+        async function manualRefresh() {
+            if (isLoading) return;
+
+            isLoading = true;
+            const btn = document.getElementById('refresh-btn');
+            btn.disabled = true;
+
+            try {
+                await renderBuses();
+            } catch (error) {
+                console.error('更新失敗:', error);
+            } finally {
+                isLoading = false;
+                btn.disabled = false;
+            }
+        }
+
+        window.addEventListener('load', () => {
+            manualRefresh();
+        });
+    </script>
+</body>
+</html>
