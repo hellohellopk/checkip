@@ -1,192 +1,76 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🚌 巴士到站時間</title>
+    <title>Network Info</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
+        body { 
             font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
             background: #1e1e1e;
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
             color: #00ff00;
         }
-        
         .terminal {
             background: rgba(0, 0, 0, 0.85);
-            min-height: 100vh;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 800px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
         }
-        
         .titlebar {
             background: #2d2d2d;
             padding: 10px 15px;
             display: flex;
             align-items: center;
             gap: 8px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
-        
         .dot {
             width: 12px;
             height: 12px;
             border-radius: 50%;
         }
-        
         .dot.red { background: #ff5f56; }
         .dot.yellow { background: #ffbd2e; }
         .dot.green { background: #27c93f; }
-        
         .title {
             flex: 1;
             text-align: center;
             color: #999;
             font-size: 13px;
         }
-        
-        .update-time {
-            color: #858585;
-            font-size: 11px;
-            margin-right: 10px;
-        }
-        
-        .refresh-btn {
-            background: transparent;
-            color: #5fb3f6;
-            border: 1px solid #5fb3f6;
-            padding: 4px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-family: inherit;
-            font-size: 11px;
-            transition: all 0.2s;
-        }
-        
-        .refresh-btn:hover {
-            background: #5fb3f6;
-            color: #000;
-        }
-        
-        .refresh-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
         .content {
             padding: 20px;
             font-size: 14px;
             line-height: 1.6;
-            max-width: 1200px;
-            margin: 0 auto;
         }
-        
         .prompt { color: #00ff00; }
         .command { color: #00d4ff; }
-        .comment { color: #858585; }
-        
-        .station-group {
+        .output { color: #d4d4d4; margin-left: 20px; }
+        .label { color: #ffbd2e; }
+        .value { color: #00ff00; }
+        #map {
+            width: 100%;
+            height: 300px;
             margin: 15px 0;
-            padding-left: 20px;
+            border-radius: 6px;
+            background: #0a0a0a;
         }
-        
-        .station-header {
-            color: #5fb3f6;
-            margin-bottom: 8px;
-            font-size: 24px;
-            font-weight: 600;
-        }
-        
-        .station-header::before {
-            content: ">";
-            margin-right: 6px;
-            color: #858585;
-        }
-        
-        .bus-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #3e3e42;
-        }
-        
-        .bus-item:last-child {
-            border-bottom: none;
-        }
-        
-        .bus-left {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            flex: 1;
-        }
-        
-        .route-number {
-            font-size: 48px;
-            font-weight: 600;
-            color: #5fb3f6;
-            min-width: 100px;
-        }
-        
-        .destination {
-            color: #d4d4d4;
-            font-size: 32px;
-        }
-        
-        .eta-info {
-            text-align: right;
-            min-width: 150px;
-        }
-        
-        .eta-time {
-            font-size: 28px;
-            font-weight: 500;
-            color: #4ec9b0;
-        }
-        
-        .eta-time.arriving {
-            color: #f39c12;
-            animation: blink 1.5s ease-in-out infinite;
-        }
-        
-        .eta-time.no-data {
-            color: #858585;
-        }
-        
-        .eta-next {
-            font-size: 18px;
-            color: #858585;
-            margin-top: 2px;
-        }
-        
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-        
-        .footer-line {
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #3e3e42;
-        }
-        
         .blink {
             animation: blink 1s infinite;
         }
-        
-        @media (max-width: 480px) {
-            .route-number { font-size: 28px; min-width: 70px; }
-            .destination { font-size: 18px; }
-            .eta-time { font-size: 20px; }
-            .eta-next { font-size: 14px; }
-            .station-header { font-size: 18px; }
-            .update-time { font-size: 10px; }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
         }
     </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
     <div class="terminal">
@@ -194,155 +78,127 @@
             <div class="dot red"></div>
             <div class="dot yellow"></div>
             <div class="dot green"></div>
-            <div class="title">bus-eta — bash</div>
-            <span class="update-time" id="last-update">--:--</span>
-            <button class="refresh-btn" id="refresh-btn" onclick="manualRefresh()">更新</button>
+            <div class="title">network-info — bash</div>
         </div>
         <div class="content">
-            <div><span class="prompt">user@macbook ~ %</span> <span class="command">./bus-eta.sh</span></div>
-            <div style="margin: 15px 0 10px 20px;">
-                <span class="comment"># 巴士到站時間 🚌</span>
+            <div><span class="prompt">user@macbook ~ %</span> <span class="command">./network-info.sh</span></div>
+            <div id="loading" style="margin: 20px 0;">
+                <div class="output">Fetching network information<span class="blink">_</span></div>
             </div>
-            
-            <div id="bus-container">
-                <div style="margin: 20px; color: #858585;">載入中<span class="blink">_</span></div>
-            </div>
-            
-            <div class="footer-line">
-                <span class="prompt">user@macbook ~ %</span> 
-                <span class="blink" style="margin-left:5px;">_</span>
+            <div id="results" style="display:none;">
+                <div class="output">
+                    <div><span class="label">Public IP:</span> <span class="value" id="ip"></span></div>
+                    <div><span class="label">Country:</span> <span class="value" id="country"></span></div>
+                    <div><span class="label">ISP:</span> <span class="value" id="isp"></span></div>
+                    <div><span class="label">DNS:</span> <span class="value" id="dns"></span></div>
+                    <div><span class="label">Location:</span> <span class="value" id="location"></span></div>
+                </div>
+                <div id="map"></div>
+                <div class="output" style="margin-top: 15px;">
+                    <div><span class="label">Ping Tests:</span></div>
+                    <div style="margin-left: 20px;" id="pings">Testing<span class="blink">_</span></div>
+                </div>
+                <div><span class="prompt">user@macbook ~ %</span> <span class="blink">_</span></div>
             </div>
         </div>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const stationGroups = [
-            {
-                stationName: '斧山道運動場',
-                routes: [
-                    { route: '5', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '尖沙咀碼頭' },
-                    { route: '3B', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '紅磡 (紅鸞道)' },
-                    { route: '3D', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '觀塘(裕民坊)' },
-                    { route: '116', operators: ['kmb', 'ctb'], kmb_stop: '711A39D02DB2B4D8', ctb_stop: '001705', kmb_dir: 'O', ctb_dir: 'I', destinations: '鰂魚涌' }
-                ]
-            },
-            {
-                stationName: '天主教伍華中學 / 九龍灣',
-                routes: [
-                    { route: '5', operators: ['kmb'], kmb_stop: '0543B8455A70833F', kmb_dir: 'I', destinations: '富山邨' },
-                    { route: '3B', operators: ['kmb'], kmb_stop: 'CFCA63CAF4C25D2B', kmb_dir: 'I', destinations: '慈雲山(中)' },
-                    { route: '116', operators: ['kmb', 'ctb'], kmb_stop: 'CFCA63CAF4C25D2B', ctb_stop: '001642', kmb_dir: 'I', ctb_dir: 'O', destinations: '慈雲山(中)' },
-                    { route: '203E', operators: ['kmb'], kmb_stop: 'CFCA63CAF4C25D2B', kmb_dir: 'I', destinations: '彩虹' },
-                    { route: '3D', operators: ['kmb'], kmb_stop: '5E1B227D9FAC4267', kmb_dir: 'I', destinations: '慈雲山(中)' }
-                ]
-            },
-            {
-                stationName: '其他',
-                routes: [
-                    { route: '290', operators: ['kmb'], kmb_stop: '58584BC1AC41723C', kmb_dir: 'O', destinations: '荃灣西站' },
-                    { route: '290A', operators: ['kmb'], kmb_stop: '58584BC1AC41723C', kmb_dir: 'O', destinations: '荃灣西站' },
-                    { route: '290X', operators: ['kmb'], kmb_stop: '58584BC1AC41723C', kmb_dir: 'O', destinations: '荃灣西站' },
-                    { route: '38', operators: ['kmb'], kmb_stop: '58584BC1AC41723C', kmb_dir: 'I', destinations: '葵盛(東)' }
-                ]
+        const countryMap = {
+            "US": "United States 美國", "GB": "United Kingdom 英國", "CA": "Canada 加拿大",
+            "AU": "Australia 澳洲", "DE": "Germany 德國", "FR": "France 法國",
+            "JP": "Japan 日本", "CN": "China 中國", "IN": "India 印度",
+            "HK": "Hong Kong 香港", "TW": "Taiwan 台灣", "SG": "Singapore 新加坡",
+            "KR": "South Korea 南韓", "IT": "Italy 意大利", "ES": "Spain 西班牙",
+            "NL": "Netherlands 荷蘭", "SE": "Sweden 瑞典", "CH": "Switzerland 瑞士"
+        };
+
+        async function getIPInfo() {
+            try {
+                const r = await fetch('https://ipinfo.io/json');
+                const j = await r.json();
+                return {
+                    ip: j.ip || 'Unavailable',
+                    country: j.country || 'Unknown',
+                    org: j.org || 'Unknown ISP',
+                    city: j.city || '',
+                    region: j.region || '',
+                    loc: j.loc || null
+                };
+            } catch {
+                return {ip: 'Unavailable', country: 'Unknown', org: 'Unknown ISP', city: '', region: '', loc: null};
             }
-        ];
+        }
 
-        let isLoading = false;
-
-        async function fetchKMBETA(stopId, route) {
+        async function getDNSInfo() {
             try {
-                const r = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${stopId}/${route}/1`);
-                const d = await r.json();
-                return d.data || [];
-            } catch { return []; }
+                const r = await fetch('https://edns.ip-api.com/json');
+                const j = await r.json();
+                return j.dns?.ip || null;
+            } catch {
+                return null;
+            }
         }
 
-        async function fetchCTBETA(stopId, route) {
+        async function getPTR(ip) {
+            if (!ip) return null;
             try {
-                const r = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${stopId}/${route}`);
-                const d = await r.json();
-                return d.data || [];
-            } catch { return []; }
+                const rev = ip.split('.').reverse().join('.');
+                const r = await fetch(`https://dns.google/resolve?name=${rev}.in-addr.arpa&type=PTR`);
+                const j = await r.json();
+                return j.Answer?.[0]?.data?.replace(/\.$/, '') || ip;
+            } catch {
+                return ip;
+            }
         }
 
-        function getMinutesDiff(etaString) {
-            if (!etaString) return null;
-            return Math.round((new Date(etaString) - new Date()) / 60000);
-        }
+        async function main() {
+            const [ipInfo, dnsIP] = await Promise.all([getIPInfo(), getDNSInfo()]);
+            const dnsDisplay = dnsIP ? await getPTR(dnsIP) : 'System Default';
 
-        async function process116Route(route) {
-            const [kmbData, ctbData] = await Promise.all([
-                fetchKMBETA(route.kmb_stop, route.route),
-                fetchCTBETA(route.ctb_stop, route.route)
-            ]);
+            document.getElementById('ip').textContent = ipInfo.ip;
+            document.getElementById('country').textContent = countryMap[ipInfo.country] || ipInfo.country;
+            document.getElementById('isp').textContent = ipInfo.org;
+            document.getElementById('dns').textContent = dnsDisplay;
+            
+            const locParts = [ipInfo.city, ipInfo.region].filter(x => x);
+            document.getElementById('location').textContent = locParts.join(', ') || 'Unknown';
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
 
-            let allETA = [];
-            kmbData.filter(b => b.dir === route.kmb_dir).slice(0, 3).forEach(b => b.eta && allETA.push({ eta: b.eta }));
-            ctbData.filter(b => b.dir === route.ctb_dir && !(b.rmk_tc || '').includes('九巴時段')).slice(0, 3).forEach(b => b.eta && allETA.push({ eta: b.eta }));
-            allETA.sort((a, b) => new Date(a.eta) - new Date(b.eta));
+            if (ipInfo.loc) {
+                const [lat, lon] = ipInfo.loc.split(',').map(Number);
+                const map = L.map('map').setView([lat, lon], 10);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '© OpenStreetMap'
+                }).addTo(map);
+                L.marker([lat, lon]).addTo(map).bindPopup(`${ipInfo.ip}<br>${locParts.join(', ')}`).openPopup();
+            }
 
-            return { first: allETA[0]?.eta, second: allETA[1]?.eta, third: allETA[2]?.eta };
-        }
+            // Ping tests
+            const hosts = [
+                ['Google', 'https://www.google.com/favicon.ico'],
+                ['Cloudflare', 'https://www.cloudflare.com/favicon.ico'],
+                ['AWS', 'https://aws.amazon.com/favicon.ico']
+            ];
 
-        async function processKMBRoute(route) {
-            const data = await fetchKMBETA(route.kmb_stop, route.route);
-            const filtered = data.filter(b => b.dir === route.kmb_dir);
-            return { first: filtered[0]?.eta, second: filtered[1]?.eta, third: filtered[2]?.eta };
-        }
-
-        async function renderBuses() {
-            const container = document.getElementById('bus-container');
-            document.getElementById('last-update').textContent = 
-                new Date().toLocaleTimeString('zh-HK', {hour: '2-digit', minute: '2-digit'});
-
-            container.innerHTML = '';
-
-            for (const group of stationGroups) {
-                const groupDiv = document.createElement('div');
-                groupDiv.className = 'station-group';
-                groupDiv.innerHTML = `<div class="station-header">${group.stationName}</div>`;
-
-                for (const route of group.routes) {
-                    const eta = route.route === '116' ? await process116Route(route) : await processKMBRoute(route);
-                    
-                    let mins = [eta.first, eta.second, eta.third].map(getMinutesDiff).filter(m => m !== null && m >= 0);
-                    
-                    let firstClass = '', firstText = '---';
-                    if (mins[0] !== undefined) {
-                        if (mins[0] === 0) { firstClass = 'arriving'; firstText = '即將到達'; }
-                        else if (mins[0] <= 2) { firstClass = 'arriving'; firstText = `${mins[0]}分鐘`; }
-                        else { firstText = `${mins[0]}分鐘`; }
-                    } else { firstClass = 'no-data'; }
-
-                    const busItem = document.createElement('div');
-                    busItem.className = 'bus-item';
-                    busItem.innerHTML = `
-                        <div class="bus-left">
-                            <div class="route-number">${route.route}</div>
-                            <div class="destination">${route.destinations}</div>
-                        </div>
-                        <div class="eta-info">
-                            <div class="eta-time ${firstClass}">${firstText}</div>
-                            ${mins[1] ? `<div class="eta-next">${mins[1]}分鐘</div>` : ''}
-                            ${mins[2] ? `<div class="eta-next">${mins[2]}分鐘</div>` : ''}
-                        </div>
-                    `;
-                    groupDiv.appendChild(busItem);
+            let pings = '';
+            for (const [name, url] of hosts) {
+                const t = Date.now();
+                try {
+                    await fetch(url, {mode: 'no-cors'});
+                    const ping = Date.now() - t;
+                    pings += `<div>${name}: <span class="value">${ping}ms</span></div>`;
+                } catch {
+                    pings += `<div>${name}: <span style="color:#ff5f56">Failed</span></div>`;
                 }
-                container.appendChild(groupDiv);
             }
+            document.getElementById('pings').innerHTML = pings;
         }
 
-        async function manualRefresh() {
-            if (isLoading) return;
-            isLoading = true;
-            document.getElementById('refresh-btn').disabled = true;
-            await renderBuses();
-            isLoading = false;
-            document.getElementById('refresh-btn').disabled = false;
-        }
-
-        window.addEventListener('load', manualRefresh);
+        main();
     </script>
 </body>
 </html>
