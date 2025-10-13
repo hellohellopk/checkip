@@ -1,432 +1,348 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-HK">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IP 及 DNS 資訊查詢</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      background: #1e1e1e;
-      font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
-      margin: 0; 
-      padding: 0;
-      color: #d4d4d4;
-      min-height: 100vh;
-      padding: 40px 20px;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      font-size: 120%;
-    }
-    .terminal-window {
-      max-width: 1100px;
-      width: 95%;
-      margin: 0 auto;
-      background: #282c34;
-      border-radius: 10px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.5);
-      overflow: hidden;
-      border: 1px solid #1a1d23;
-    }
-    .terminal-header {
-      background: #21252b;
-      padding: 14px 18px;
-      display: flex;
-      align-items: center;
-      border-bottom: 1px solid #181a1f;
-    }
-    .terminal-controls {
-      display: flex;
-      gap: 10px;
-    }
-    .terminal-controls span {
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-    .terminal-controls .close { background: #ff5f56; }
-    .terminal-controls .minimize { background: #ffbd2e; }
-    .terminal-controls .maximize { background: #27c93f; }
-    .terminal-title {
-      flex: 1;
-      text-align: center;
-      color: #abb2bf;
-      font-size: 15.6px;
-      font-weight: 500;
-      margin-left: -60px;
-    }
-    .terminal-body {
-      padding: 34px 38px;
-      background: #282c34;
-      min-height: 500px;
-    }
-    .prompt-line {
-      display: flex;
-      align-items: center;
-      margin-bottom: 28px;
-      font-size: 18px;
-    }
-    .prompt-symbol {
-      color: #98c379;
-      margin-right: 10px;
-      font-weight: bold;
-    }
-    .prompt-path {
-      color: #61afef;
-      margin-right: 10px;
-    }
-    .prompt-git {
-      color: #c678dd;
-      margin-right: 10px;
-    }
-    .prompt-arrow {
-      color: #98c379;
-      margin-right: 12px;
-    }
-    h1 {
-      color: #61afef;
-      font-size: 33.6px;
-      font-weight: 600;
-      margin: 0 0 10px 0;
-      letter-spacing: 0.5px;
-    }
-    .subtitle {
-      color: #5c6370;
-      font-size: 16.8px;
-      margin-bottom: 38px;
-      font-style: italic;
-    }
-    .section-title {
-      margin-top: 43px;
-      font-size: 21.6px;
-      font-weight: 600;
-      color: #e5c07b;
-      margin-bottom: 19px;
-      display: flex;
-      align-items: center;
-    }
-    .section-title:first-of-type {
-      margin-top: 0;
-    }
-    .section-title::before {
-      content: '▸';
-      margin-right: 10px;
-      color: #98c379;
-    }
-    .info-block {
-      background: #21252b;
-      border-left: 4px solid #61afef;
-      padding: 19px 24px;
-      margin-bottom: 24px;
-      border-radius: 4px;
-      font-size: 16.8px;
-    }
-    .info-row {
-      display: flex;
-      padding: 12px 0;
-      border-bottom: 1px solid #2c313a;
-      transition: all 0.2s ease;
-    }
-    .info-row:last-child {
-      border-bottom: none;
-    }
-    .info-row:hover {
-      background: #2c313a;
-      margin: 0 -10px;
-      padding: 12px 10px;
-      border-radius: 3px;
-    }
-    .info-label {
-      color: #e06c75;
-      font-weight: 600;
-      width: 35%;
-      min-width: 168px;
-    }
-    .info-value {
-      color: #98c379;
-      word-break: break-word;
-      flex: 1;
-    }
-    .loading {
-      color: #e5c07b;
-      text-align: center;
-      margin: 24px 0;
-      font-size: 16.8px;
-      padding: 28px;
-      background: #21252b;
-      border-radius: 6px;
-      border: 1px dashed #3e4451;
-    }
-    .loading::before {
-      content: '⟳ ';
-      display: inline-block;
-      animation: spin 1s linear infinite;
-    }
-    .loading::after {
-      content: '...';
-      animation: dots 1.5s steps(4, end) infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    @keyframes dots {
-      0%, 20% { content: '.'; }
-      40% { content: '..'; }
-      60%, 100% { content: '...'; }
-    }
-    .error {
-      color: #e06c75;
-      text-align: center;
-      margin: 24px 0;
-      font-size: 16.8px;
-      padding: 24px;
-      background: #3b2c2c;
-      border-radius: 6px;
-      border-left: 4px solid #e06c75;
-    }
-    .error::before {
-      content: '✗ ';
-      font-weight: bold;
-      margin-right: 7px;
-    }
-    .comment {
-      color: #5c6370;
-      font-style: italic;
-      margin: 19px 0;
-      font-size: 15.6px;
-    }
-    .comment::before {
-      content: '# ';
-    }
-    .dns-container {
-      background: #21252b;
-      border-radius: 6px;
-      padding: 19px;
-      margin-top: 24px;
-      border: 1px solid #3e4451;
-    }
-    .dns-frame {
-      width: 100%;
-      height: 550px;
-      border: none;
-      border-radius: 4px;
-      background: #1e1e1e;
-    }
-    .status-indicator {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      background: #98c379;
-      border-radius: 50%;
-      margin-right: 10px;
-      animation: pulse 2s infinite;
-      box-shadow: 0 0 10px #98c379;
-    }
-    @keyframes pulse {
-      0%, 100% { 
-        opacity: 1;
-        box-shadow: 0 0 10px #98c379;
-      }
-      50% { 
-        opacity: 0.5;
-        box-shadow: 0 0 5px #98c379;
-      }
-    }
-    .divider {
-      height: 1px;
-      background: #3e4451;
-      margin: 34px 0;
-      position: relative;
-    }
-    .divider::before {
-      content: '─────────────────────────────────────────────────────────────────────';
-      position: absolute;
-      left: 0;
-      top: -10px;
-      color: #3e4451;
-      font-size: 12px;
-      letter-spacing: 2px;
-    }
-    @media (max-width: 768px) {
-      body {
-        padding: 20px 10px;
-        font-size: 110%;
-      }
-      .terminal-body {
-        padding: 24px 22px;
-      }
-      .terminal-title {
-        font-size: 14.4px;
-      }
-      .prompt-line {
-        font-size: 15.6px;
-        flex-wrap: wrap;
-      }
-      h1 {
-        font-size: 28.8px;
-      }
-      .subtitle {
-        font-size: 15.6px;
-      }
-      .section-title {
-        font-size: 19.2px;
-      }
-      .info-label {
-        width: 40%;
-        min-width: 144px;
-        font-size: 15.6px;
-      }
-      .info-value {
-        font-size: 15.6px;
-      }
-      .dns-frame {
-        height: 480px;
-      }
-    }
-    @media (max-width: 480px) {
-      body {
-        font-size: 100%;
-      }
-      .terminal-body {
-        padding: 19px 17px;
-      }
-      h1 {
-        font-size: 24px;
-      }
-      .info-row {
-        flex-direction: column;
-        gap: 7px;
-      }
-      .info-label {
-        width: 100%;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚌 巴士到站時間</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+            background: #1e1e1e;
+            min-height: 100vh;
+            color: #00ff00;
+        }
+        
+        .terminal {
+            background: rgba(0, 0, 0, 0.85);
+            min-height: 100vh;
+        }
+        
+        .titlebar {
+            background: #2d2d2d;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .dot.red { background: #ff5f56; }
+        .dot.yellow { background: #ffbd2e; }
+        .dot.green { background: #27c93f; }
+        
+        .title {
+            flex: 1;
+            text-align: center;
+            color: #999;
+            font-size: 13px;
+        }
+        
+        .update-time {
+            color: #858585;
+            font-size: 11px;
+            margin-right: 10px;
+        }
+        
+        .refresh-btn {
+            background: transparent;
+            color: #5fb3f6;
+            border: 1px solid #5fb3f6;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+        
+        .refresh-btn:hover {
+            background: #5fb3f6;
+            color: #000;
+        }
+        
+        .refresh-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .content {
+            padding: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .prompt { color: #00ff00; }
+        .command { color: #00d4ff; }
+        .comment { color: #858585; }
+        
+        .station-group {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+        
+        .station-header {
+            color: #5fb3f6;
+            margin-bottom: 8px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .station-header::before {
+            content: ">";
+            margin-right: 6px;
+            color: #858585;
+        }
+        
+        .bus-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #3e3e42;
+        }
+        
+        .bus-item:last-child {
+            border-bottom: none;
+        }
+        
+        .bus-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex: 1;
+        }
+        
+        .route-number {
+            font-size: 48px;
+            font-weight: 600;
+            color: #5fb3f6;
+            min-width: 100px;
+        }
+        
+        .destination {
+            color: #d4d4d4;
+            font-size: 32px;
+        }
+        
+        .eta-info {
+            text-align: right;
+            min-width: 150px;
+        }
+        
+        .eta-time {
+            font-size: 28px;
+            font-weight: 500;
+            color: #4ec9b0;
+        }
+        
+        .eta-time.arriving {
+            color: #f39c12;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+        
+        .eta-time.no-data {
+            color: #858585;
+        }
+        
+        .eta-next {
+            font-size: 18px;
+            color: #858585;
+            margin-top: 2px;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        .footer-line {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #3e3e42;
+        }
+        
+        .blink {
+            animation: blink 1s infinite;
+        }
+        
+        @media (max-width: 480px) {
+            .route-number { font-size: 28px; min-width: 70px; }
+            .destination { font-size: 18px; }
+            .eta-time { font-size: 20px; }
+            .eta-next { font-size: 14px; }
+            .station-header { font-size: 18px; }
+            .update-time { font-size: 10px; }
+        }
+    </style>
 </head>
 <body>
-  <div class="terminal-window">
-    <div class="terminal-header">
-      <div class="terminal-controls">
-        <span class="close"></span>
-        <span class="minimize"></span>
-        <span class="maximize"></span>
-      </div>
-      <div class="terminal-title">ip-dns-checker — zsh — 80×24</div>
-    </div>
-    
-    <div class="terminal-body">
-      <div class="prompt-line">
-        <span class="prompt-symbol">➜</span>
-        <span class="prompt-path">~/network-tools</span>
-        <span class="prompt-git">git:(main)</span>
-        <span class="prompt-arrow">✗</span>
-      </div>
-      
-      <h1>🌐 IP 及 DNS 資訊查詢</h1>
-      <div class="subtitle"># 即時自動獲取您的網路位置與 DNS 解析器資訊</div>
-
-      <div class="section-title">
-        <span class="status-indicator"></span>IP 地理位置資訊
-      </div>
-      
-      <div class="comment">正在執行 IP 地理位置查詢...</div>
-      
-      <div id="ip-loading" class="loading">查詢中</div>
-      
-      <div class="info-block" id="ip-block" style="display:none;">
-        <div class="info-row">
-          <div class="info-label">ip_address:</div>
-          <div class="info-value" id="ip"></div>
+    <div class="terminal">
+        <div class="titlebar">
+            <div class="dot red"></div>
+            <div class="dot yellow"></div>
+            <div class="dot green"></div>
+            <div class="title">bus-eta — bash</div>
+            <span class="update-time" id="last-update">--:--</span>
+            <button class="refresh-btn" id="refresh-btn" onclick="manualRefresh()">更新</button>
         </div>
-        <div class="info-row">
-          <div class="info-label">location:</div>
-          <div class="info-value" id="location"></div>
-        </div>
-        <div class="info-row">
-          <div class="info-label">isp:</div>
-          <div class="info-value" id="isp"></div>
-        </div>
-      </div>
-      
-      <div id="ip-error" class="error" style="display:none;"></div>
-
-      <div class="divider"></div>
-
-      <div class="section-title">
-        <span class="status-indicator"></span>DNS 解析器檢測
-      </div>
-      
-      <div class="comment">載入 dnscheck.tools 即時檢測工具...</div>
-      
-      <div class="dns-container">
-        <iframe 
-          src="https://dnscheck.tools/" 
-          class="dns-frame"
-          title="DNS Check Tools"
-          loading="lazy"
-          sandbox="allow-scripts allow-same-origin"
-        ></iframe>
-      </div>
-      
-      <div class="prompt-line" style="margin-top: 28px;">
-        <span class="prompt-symbol">➜</span>
-        <span class="prompt-path">~/network-tools</span>
-        <span class="prompt-git">git:(main)</span>
-        <span class="prompt-arrow">✗</span>
-        <span style="color: #abb2bf;">▊</span>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // IP 資訊查詢 - 使用 ipapi.co（支援 HTTPS）
-    fetch('https://ipapi.co/json/')
-      .then(res => {
-        if (!res.ok) throw new Error('Network response was not ok');
-        return res.json();
-      })
-      .then(data => {
-        console.log('IP 資料:', data);
-        document.getElementById('ip').innerText = `"${data.ip}"` || '"-"';
-        
-        // 合併國家和城市資訊
-        let locationText = '';
-        if (data.city && data.region) {
-          locationText = `"${data.city}, ${data.region}, ${data.country_name || '-'} (${data.country_code || '-'})"`;
-        } else if (data.city) {
-          locationText = `"${data.city}, ${data.country_name || '-'} (${data.country_code || '-'})"`;
-        } else {
-          locationText = `"${data.country_name || '-'} (${data.country_code || '-'})"`;
-        }
-        document.getElementById('location').innerText = locationText;
-        
-        document.getElementById('isp').innerText = `"${data.org}"` || '"-"';
-        
-        document.getElementById('ip-loading').style.display = 'none';
-        document.getElementById('ip-block').style.display = 'block';
-      })
-      .catch(err => {
-        console.error('IP 查詢錯誤:', err);
-        // 備用方案：使用 ipify（只返回 IP）
-        fetch('https://api.ipify.org?format=json')
-          .then(res => res.json())
-          .then(data => {
-            document.getElementById('ip').innerText = `"${data.ip}"` || '"-"';
-            document.getElementById('location').innerText = '"（僅IP資訊）"';
-            document.getElementById('isp').innerText = '"-"';
+        <div class="content">
+            <div><span class="prompt">user@macbook ~ %</span> <span class="command">./bus-eta.sh</span></div>
+            <div style="margin: 15px 0 10px 20px;">
+                <span class="comment"># 巴士到站時間 🚌</span>
+            </div>
             
-            document.getElementById('ip-loading').style.display = 'none';
-            document.getElementById('ip-block').style.display = 'block';
-          })
-          .catch(err2 => {
-            console.error('備用 IP 查詢錯誤:', err2);
-            document.getElementById('ip-loading').style.display = 'none';
-            document.getElementById('ip-error').innerText = '無法取得 IP 資訊，請檢查網路連線或稍後再試';
-            document.getElementById('ip-error').style.display = 'block';
-          });
-      });
-  </script>
+            <div id="bus-container">
+                <div style="margin: 20px; color: #858585;">載入中<span class="blink">_</span></div>
+            </div>
+            
+            <div class="footer-line">
+                <span class="prompt">user@macbook ~ %</span> 
+                <span class="blink" style="margin-left:5px;">_</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const stationGroups = [
+            {
+                stationName: '斧山道運動場',
+                routes: [
+                    { route: '5', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '尖沙咀碼頭' },
+                    { route: '3B', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '紅磡 (紅鸞道)' },
+                    { route: '3D', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '觀塘(裕民坊)' },
+                    { route: '116', operators: ['kmb', 'ctb'], kmb_stop: '711A39D02DB2B4D8', ctb_stop: '001705', kmb_dir: 'O', ctb_dir: 'I', destinations: '鰂魚涌' }
+                ]
+            },
+            {
+                stationName: '天主教伍華中學 / 九龍灣',
+                routes: [
+                    { route: '5', operators: ['kmb'], kmb_stop: '0543B8455A70833F', kmb_dir: 'I', destinations: '富山邨' },
+                    { route: '3B', operators: ['kmb'], kmb_stop: 'CFCA63CAF4C25D2B', kmb_dir: 'I', destinations: '慈雲山(中)' },
+                    { route: '116', operators: ['kmb', 'ctb'], kmb_stop: 'CFCA63CAF4C25D2B', ctb_stop: '001642', kmb_dir: 'I', ctb_dir: 'O', destinations: '慈雲山(中)' },
+                    { route: '203E', operators: ['kmb'], kmb_stop: 'CFCA63CAF4C25D2B', kmb_dir: 'I', destinations: '彩虹' },
+                    { route: '3D', operators: ['kmb'], kmb_stop: '5E1B227D9FAC4267', kmb_dir: 'I', destinations: '慈雲山(中)' }
+                ]
+            },
+            {
+                stationName: '其他',
+                routes: [
+                    { route: '290', operators: ['kmb'], kmb_stop: '58584BC1AC41723C', kmb_dir: 'O', destinations: '荃灣西站' },
+                    { route: '290A', operators: ['kmb'], kmb_stop: '58584BC1AC41723C', kmb_dir: 'O', destinations: '荃灣西站' },
+                    { route: '290X', operators: ['kmb'], kmb_stop: '58584BC1AC41723C', kmb_dir: 'O', destinations: '荃灣西站' },
+                    { route: '38', operators: ['kmb'], kmb_stop: '58584BC1AC41723C', kmb_dir: 'I', destinations: '葵盛(東)' }
+                ]
+            }
+        ];
+
+        let isLoading = false;
+
+        async function fetchKMBETA(stopId, route) {
+            try {
+                const r = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${stopId}/${route}/1`);
+                const d = await r.json();
+                return d.data || [];
+            } catch { return []; }
+        }
+
+        async function fetchCTBETA(stopId, route) {
+            try {
+                const r = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${stopId}/${route}`);
+                const d = await r.json();
+                return d.data || [];
+            } catch { return []; }
+        }
+
+        function getMinutesDiff(etaString) {
+            if (!etaString) return null;
+            return Math.round((new Date(etaString) - new Date()) / 60000);
+        }
+
+        async function process116Route(route) {
+            const [kmbData, ctbData] = await Promise.all([
+                fetchKMBETA(route.kmb_stop, route.route),
+                fetchCTBETA(route.ctb_stop, route.route)
+            ]);
+
+            let allETA = [];
+            kmbData.filter(b => b.dir === route.kmb_dir).slice(0, 3).forEach(b => b.eta && allETA.push({ eta: b.eta }));
+            ctbData.filter(b => b.dir === route.ctb_dir && !(b.rmk_tc || '').includes('九巴時段')).slice(0, 3).forEach(b => b.eta && allETA.push({ eta: b.eta }));
+            allETA.sort((a, b) => new Date(a.eta) - new Date(b.eta));
+
+            return { first: allETA[0]?.eta, second: allETA[1]?.eta, third: allETA[2]?.eta };
+        }
+
+        async function processKMBRoute(route) {
+            const data = await fetchKMBETA(route.kmb_stop, route.route);
+            const filtered = data.filter(b => b.dir === route.kmb_dir);
+            return { first: filtered[0]?.eta, second: filtered[1]?.eta, third: filtered[2]?.eta };
+        }
+
+        async function renderBuses() {
+            const container = document.getElementById('bus-container');
+            document.getElementById('last-update').textContent = 
+                new Date().toLocaleTimeString('zh-HK', {hour: '2-digit', minute: '2-digit'});
+
+            container.innerHTML = '';
+
+            for (const group of stationGroups) {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'station-group';
+                groupDiv.innerHTML = `<div class="station-header">${group.stationName}</div>`;
+
+                for (const route of group.routes) {
+                    const eta = route.route === '116' ? await process116Route(route) : await processKMBRoute(route);
+                    
+                    let mins = [eta.first, eta.second, eta.third].map(getMinutesDiff).filter(m => m !== null && m >= 0);
+                    
+                    let firstClass = '', firstText = '---';
+                    if (mins[0] !== undefined) {
+                        if (mins[0] === 0) { firstClass = 'arriving'; firstText = '即將到達'; }
+                        else if (mins[0] <= 2) { firstClass = 'arriving'; firstText = `${mins[0]}分鐘`; }
+                        else { firstText = `${mins[0]}分鐘`; }
+                    } else { firstClass = 'no-data'; }
+
+                    const busItem = document.createElement('div');
+                    busItem.className = 'bus-item';
+                    busItem.innerHTML = `
+                        <div class="bus-left">
+                            <div class="route-number">${route.route}</div>
+                            <div class="destination">${route.destinations}</div>
+                        </div>
+                        <div class="eta-info">
+                            <div class="eta-time ${firstClass}">${firstText}</div>
+                            ${mins[1] ? `<div class="eta-next">${mins[1]}分鐘</div>` : ''}
+                            ${mins[2] ? `<div class="eta-next">${mins[2]}分鐘</div>` : ''}
+                        </div>
+                    `;
+                    groupDiv.appendChild(busItem);
+                }
+                container.appendChild(groupDiv);
+            }
+        }
+
+        async function manualRefresh() {
+            if (isLoading) return;
+            isLoading = true;
+            document.getElementById('refresh-btn').disabled = true;
+            await renderBuses();
+            isLoading = false;
+            document.getElementById('refresh-btn').disabled = false;
+        }
+
+        window.addEventListener('load', manualRefresh);
+    </script>
 </body>
 </html>
