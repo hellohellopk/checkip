@@ -330,11 +330,14 @@
             <div class="terminal-button btn-maximize"></div>
             <div class="api-selector">
                 <select class="api-select" id="apiSelect">
-                    
                     <option value="cerebras">Cerebras API</option>
                     <option value="groq">Groq API</option>
+                    <option value="navy">NavyAI (50+ Models)</option>
                 </select>
             </div>
+            <button onclick="openSettings()" class="settings-btn" aria-label="設定 API 金鑰">
+                <i class="fas fa-cog"></i> 設定
+            </button>
         </div>
         
         <div class="terminal-body">
@@ -399,7 +402,7 @@
 
     <!-- API 金鑰設定模態框 -->
     <div id="settingsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center;">
-        <div style="background: white; border-radius: 20px; padding: 40px; max-width: 600px; width: 90%; box-shadow: 0 30px 80px rgba(0,0,0,0.5);">
+        <div style="background: white; border-radius: 20px; padding: 40px; max-width: 600px; width: 90%; box-shadow: 0 30px 80px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto;">
             <h2 style="margin-bottom: 20px; color: #667eea; font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;">⚙️ API 金鑰設定</h2>
             <p style="color: #666; margin-bottom: 30px; font-size: 14px; line-height: 1.6;">為了保護您的 API 金鑰安全，請在此輸入。金鑰將安全地儲存在您的瀏覽器本地，不會上傳到任何伺服器。</p>
 
@@ -415,6 +418,15 @@
                 <small style="color: #999; display: block; margin-top: 5px; font-size: 12px;">取得金鑰: <a href="https://console.groq.com/" target="_blank" style="color: #667eea; text-decoration: none;">https://console.groq.com/</a></small>
             </div>
 
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333; font-size: 14px;">
+                    NavyAI API Key: 
+                    <span style="background: #28ca42; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 5px;">250K FREE/DAY</span>
+                </label>
+                <input type="password" id="navyKeyInput" placeholder="navy_..." style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 14px; box-sizing: border-box;">
+                <small style="color: #999; display: block; margin-top: 5px; font-size: 12px;">取得金鑰: <a href="https://api.navy/" target="_blank" style="color: #667eea; text-decoration: none;">https://api.navy/</a> (50+ Models)</small>
+            </div>
+
             <div style="display: flex; gap: 15px; margin-top: 30px;">
                 <button onclick="saveApiKeys()" style="flex: 1; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-family: 'SF Mono', 'Monaco', 'Menlo', monospace; transition: all 0.3s;">
                     💾 儲存設定
@@ -424,7 +436,13 @@
                 </button>
             </div>
 
-            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107;">
+            <div style="margin-top: 20px; padding: 15px; background: #d4edda; border-radius: 8px; border: 1px solid #c3e6cb;">
+                <small style="color: #155724; line-height: 1.6; font-size: 12px;">
+                    <strong>💡 推薦：</strong> NavyAI 提供每天 250K tokens 免費額度，支援 GPT-4o、Claude、Gemini 等 50+ 模型，適合測試與個人使用！
+                </small>
+            </div>
+
+            <div style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107;">
                 <small style="color: #856404; line-height: 1.6; font-size: 12px;">
                     <strong>⚠️ 安全提示：</strong><br>
                     • 金鑰僅儲存在您的本地瀏覽器<br>
@@ -655,6 +673,7 @@ ${content.substring(0, 10000)}`;
                 let response;
 
                 if (selectedApi === 'groq') {
+                    // Groq API - 超快速推理
                     response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                         method: 'POST',
                         headers: {
@@ -668,7 +687,23 @@ ${content.substring(0, 10000)}`;
                             temperature: 0.3
                         })
                     });
+                } else if (selectedApi === 'navy') {
+                    // NavyAI API - 50+ 模型，250K tokens/天免費
+                    response = await fetch('https://api.navy/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: 'gpt-4o-mini',
+                            messages: [{ role: 'user', content: prompt }],
+                            max_tokens: 4000,
+                            temperature: 0.3
+                        })
+                    });
                 } else {
+                    // Cerebras API (預設)
                     response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
                         method: 'POST',
                         headers: {
@@ -685,7 +720,8 @@ ${content.substring(0, 10000)}`;
                 }
 
                 if (!response.ok) {
-                    throw new Error(`API 錯誤 (${response.status}): 請檢查您的 API 金鑰是否正確`);
+                    const errorText = await response.text();
+                    throw new Error(`API 錯誤 (${response.status}): ${errorText.substring(0, 100)}`);
                 }
 
                 const data = await response.json();
@@ -693,7 +729,7 @@ ${content.substring(0, 10000)}`;
 
                 resultBox.innerHTML = `
                     <div class="success-icon"><i class="fas fa-check-circle"></i></div>
-                    <div class="result-title">轉換完成！</div>
+                    <div class="result-title">✅ 轉換完成！</div>
                     <pre>${converted}</pre>
                     <button class="download-btn" onclick="downloadResult('${targetFormat}')"><i class="fas fa-download"></i> 下載 ${targetFormat.toUpperCase()}</button>
                 `;
@@ -721,7 +757,7 @@ ${content.substring(0, 10000)}`;
         function getApiKey(provider) {
             const key = localStorage.getItem(`api_key_${provider}`);
             if (!key) {
-                alert(`請先設定 ${provider.toUpperCase()} API 金鑰！`);
+                alert(`請先設定 ${provider === 'navy' ? 'NavyAI' : provider.toUpperCase()} API 金鑰！\n\n💡 推薦使用 NavyAI：每天 250K tokens 免費`);
                 openSettings();
                 return null;
             }
@@ -731,19 +767,28 @@ ${content.substring(0, 10000)}`;
         function saveApiKeys() {
             const cerebrasKey = document.getElementById('cerebrasKeyInput').value.trim();
             const groqKey = document.getElementById('groqKeyInput').value.trim();
+            const navyKey = document.getElementById('navyKeyInput').value.trim();
+
+            let saved = false;
 
             if (cerebrasKey) {
                 localStorage.setItem('api_key_cerebras', cerebrasKey);
+                saved = true;
             }
             if (groqKey) {
                 localStorage.setItem('api_key_groq', groqKey);
+                saved = true;
+            }
+            if (navyKey) {
+                localStorage.setItem('api_key_navy', navyKey);
+                saved = true;
             }
 
-            if (cerebrasKey || groqKey) {
-                alert('✅ API 金鑰已安全儲存！');
+            if (saved) {
+                alert('✅ API 金鑰已安全儲存！\n金鑰僅儲存在您的本地瀏覽器。');
                 closeSettings();
             } else {
-                alert('⚠️ 請至少輸入一個 API 金鑰');
+                alert('⚠️ 請至少輸入一個 API 金鑰\n\n💡 推薦 NavyAI：每天 250K tokens 免費');
             }
         }
 
@@ -751,27 +796,29 @@ ${content.substring(0, 10000)}`;
             const modal = document.getElementById('settingsModal');
             modal.style.display = 'flex';
 
+            // 載入現有金鑰
             const cerebrasKey = localStorage.getItem('api_key_cerebras');
             const groqKey = localStorage.getItem('api_key_groq');
+            const navyKey = localStorage.getItem('api_key_navy');
 
-            if (cerebrasKey) {
-                document.getElementById('cerebrasKeyInput').value = cerebrasKey;
-            }
-            if (groqKey) {
-                document.getElementById('groqKeyInput').value = groqKey;
-            }
+            if (cerebrasKey) document.getElementById('cerebrasKeyInput').value = cerebrasKey;
+            if (groqKey) document.getElementById('groqKeyInput').value = groqKey;
+            if (navyKey) document.getElementById('navyKeyInput').value = navyKey;
         }
 
         function closeSettings() {
             document.getElementById('settingsModal').style.display = 'none';
         }
 
+        // 頁面載入時檢查 API 金鑰
         window.addEventListener('DOMContentLoaded', () => {
             const hasCerebras = localStorage.getItem('api_key_cerebras');
             const hasGroq = localStorage.getItem('api_key_groq');
+            const hasNavy = localStorage.getItem('api_key_navy');
 
-            if (!hasCerebras && !hasGroq) {
+            if (!hasCerebras && !hasGroq && !hasNavy) {
                 setTimeout(() => {
+                    alert('👋 歡迎使用 PDF Converter！\n\n請先設定 API 金鑰才能使用轉換功能。\n\n💡 推薦 NavyAI：每天 250K tokens 免費，支援 50+ AI 模型！');
                     openSettings();
                 }, 1000);
             }
