@@ -91,6 +91,7 @@
                     <div><span class="label">Country:</span> <span class="value" id="country"></span></div>
                     <div><span class="label">ISP:</span> <span class="value" id="isp"></span></div>
                     <div><span class="label">DNS:</span> <span class="value" id="dns"></span></div>
+                    <div><span class="label">DNS PTR:</span> <span class="value" id="dnsptr"></span></div>
                     <div><span class="label">Location:</span> <span class="value" id="location"></span></div>
                 </div>
                 <div id="map"></div>
@@ -135,32 +136,31 @@
             try {
                 const r = await fetch('https://edns.ip-api.com/json');
                 const j = await r.json();
-                return j.dns?.ip || null;
+                const ip = j.dns?.ip;
+                
+                if (!ip) return { ip: null, ptr: null };
+                
+                const reversed = ip.split('.').reverse().join('.') + '.in-addr.arpa';
+                const ptrRes = await fetch(`https://dns.google/resolve?name=${reversed}&type=PTR`);
+                const ptrData = await ptrRes.json();
+                
+                return {
+                    ip: ip,
+                    ptr: ptrData.Answer?.[0]?.data?.replace(/\.$/, '') || 'No PTR record'
+                };
             } catch {
-                return null;
-            }
-        }
-
-        async function getPTR(ip) {
-            if (!ip) return null;
-            try {
-                const rev = ip.split('.').reverse().join('.');
-                const r = await fetch(`https://dns.google/resolve?name=${rev}.in-addr.arpa&type=PTR`);
-                const j = await r.json();
-                return j.Answer?.[0]?.data?.replace(/\.$/, '') || ip;
-            } catch {
-                return ip;
+                return { ip: null, ptr: null };
             }
         }
 
         async function main() {
-            const [ipInfo, dnsIP] = await Promise.all([getIPInfo(), getDNSInfo()]);
-            const dnsDisplay = dnsIP ? await getPTR(dnsIP) : 'System Default';
+            const [ipInfo, dnsInfo] = await Promise.all([getIPInfo(), getDNSInfo()]);
 
             document.getElementById('ip').textContent = ipInfo.ip;
             document.getElementById('country').textContent = countryMap[ipInfo.country] || ipInfo.country;
             document.getElementById('isp').textContent = ipInfo.org;
-            document.getElementById('dns').textContent = dnsDisplay;
+            document.getElementById('dns').textContent = dnsInfo.ip || 'System Default';
+            document.getElementById('dnsptr').textContent = dnsInfo.ptr || 'N/A';
             
             const locParts = [ipInfo.city, ipInfo.region].filter(x => x);
             document.getElementById('location').textContent = locParts.join(', ') || 'Unknown';
