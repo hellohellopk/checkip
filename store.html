@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Price Checker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .terminal-header {
+            background: #2d2d2d;
+            border-radius: 8px 8px 0 0;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 0;
+        }
+
+        .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27ca3f; }
+
+        .terminal-title {
+            margin-left: 12px;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .terminal-body {
+            background: #1e1e1e;
+            border: 1px solid #2d2d2d;
+            border-radius: 0 0 8px 8px;
+            padding: 20px;
+            min-height: 400px;
+        }
+
+        h1 {
+            color: #00d4aa;
+            margin-bottom: 20px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .search-box {
+            background: #2d2d2d;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #404040;
+        }
+
+        .input-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .prompt {
+            color: #00d4aa;
+            font-weight: 600;
+        }
+
+        input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            padding: 8px 0;
+        }
+
+        input::placeholder {
+            color: #666;
+        }
+
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #005a9e;
+        }
+
+        .currency-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #404040;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #007acc;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
+
+        .currency-label {
+            color: #888;
+            font-size: 12px;
+        }
+
+        #searchResults {
+            background: #2d2d2d;
+            border-radius: 6px;
+            border: 1px solid #404040;
+            min-height: 200px;
+        }
+
+        .app-header {
+            display: flex;
+            gap: 16px;
+            padding: 20px;
+            border-bottom: 1px solid #404040;
+            align-items: center;
+        }
+
+        .app-header img {
+            width: 80px;
+            height: 80px;
+            border-radius: 18px;
+        }
+
+        .app-details {
+            flex: 1;
+        }
+
+        .app-name {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .app-developer {
+            color: #888;
+            font-size: 14px;
+        }
+
+        .price-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .price-box {
+            background: #1e1e1e;
+            padding: 16px 20px;
+            text-decoration: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #404040;
+            transition: all 0.2s;
+            height: 60px;
+            min-height: 60px;
+            max-height: 60px;
+        }
+
+        .price-box:last-child {
+            border-bottom: none;
+        }
+
+        .price-box:hover {
+            background: #252525;
+        }
+
+        .price-box:nth-child(1) { border-left: 4px solid #ff5f56; }
+        .price-box:nth-child(2) { border-left: 4px solid #ffbd2e; }
+        .price-box:nth-child(3) { border-left: 4px solid #27ca3f; }
+        .price-box:nth-child(4) { border-left: 4px solid #007acc; }
+        .price-box:nth-child(5) { border-left: 4px solid #ff6b35; }
+
+        .region {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .price {
+            color: #00d4aa;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .price-hkd {
+            color: #ff5f56;
+            font-size: 16px;
+            font-weight: 600;
+            margin-left: 16px;
+        }
+
+        .price-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .terminal-text {
+            color: #888;
+            padding: 20px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .loading { color: #ffbd2e; }
+        .error { color: #ff5f56; }
+        .success { color: #27ca3f; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="terminal-header">
+            <div class="terminal-dot dot-red"></div>
+            <div class="terminal-dot dot-yellow"></div>
+            <div class="terminal-dot dot-green"></div>
+            <div class="terminal-title">app-price-checker — zsh — 120×40</div>
+        </div>
+        <div class="terminal-body">
+            <h1>$ ./app-price-checker.sh</h1>
+            
+            <div class="search-box">
+                <div class="input-line">
+                    <span class="prompt">search &gt;</span>
+                    <input type="text" id="searchInput" placeholder="輸入 App 名稱或 App Store 連結">
+                    <button onclick="searchApp()">執行</button>
+                </div>
+                <div class="currency-toggle">
+                    <span class="currency-label">當地貨幣</span>
+                    <div class="toggle-switch active" id="currencyToggle" onclick="toggleCurrency()">
+                        <div class="toggle-slider"></div>
+                    </div>
+                    <span class="currency-label">香港港幣</span>
+                </div>
+            </div>
+
+            <div id="searchResults">
+                <div class="terminal-text">等待輸入...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const regions = [
+            { code: 'hk', name: '🇭🇰 香港', currency: 'HKD', symbol: 'HK$' },
+            { code: 'us', name: '🇺🇸 美國', currency: 'USD', symbol: '$' },
+            { code: 'jp', name: '🇯🇵 日本', currency: 'JPY', symbol: '¥' },
+            { code: 'tr', name: '🇹🇷 土耳其', currency: 'TRY', symbol: '₺' },
+            { code: 'in', name: '🇮🇳 印度', currency: 'INR', symbol: '₹' }
+        ];
+
+        let showHKD = true;
+        let exchangeRates = {};
+
+        async function getExchangeRates() {
+            try {
+                const apis = [
+                    'https://api.exchangerate-api.com/v4/latest/usd',
+                    'https://api.exchangerate-api.com/v4/latest/hkd',
+                    'https://api.exchangerate-api.com/v4/latest/inr',
+                    'https://api.exchangerate-api.com/v4/latest/try'
+                ];
+
+                const responses = await Promise.all(apis.map(api => fetch(api)));
+                const data = await Promise.all(responses.map(r => r.json()));
+
+                exchangeRates = {
+                    'USD': data[0].rates.HKD,
+                    'HKD': 1,
+                    'JPY': data[1].rates.JPY,
+                    'TRY': data[1].rates.TRY,
+                    'INR': data[1].rates.INR
+                };
+            } catch (error) {
+                console.error('無法獲取匯率:', error);
+            }
+        }
+
+        function convertToHKD(price, currency) {
+            if (!exchangeRates[currency] || price === 0) return null;
+            
+            let hkdPrice;
+            if (currency === 'USD') {
+                hkdPrice = price * exchangeRates['USD'];
+            } else if (currency === 'HKD') {
+                hkdPrice = price;
+            } else {
+                hkdPrice = price / exchangeRates[currency];
+            }
+            
+            return `HK$ ${hkdPrice.toFixed(2)}`;
+        }
+
+        function getCurrencySymbol(currency) {
+            const region = regions.find(r => r.currency === currency);
+            return region ? region.symbol : currency;
+        }
+
+        function toggleCurrency() {
+            showHKD = !showHKD;
+            const toggle = document.getElementById('currencyToggle');
+            toggle.classList.toggle('active', showHKD);
+
+            const currentTrackId = document.getElementById('searchResults').dataset.trackId;
+            if (currentTrackId) {
+                displayAppWithPrices(currentTrackId);
+            }
+        }
+
+        function extractAppId(input) {
+            const patterns = [
+                /id(\d+)/i,
+                /\/app\/[^\/]+\/id(\d+)/i,
+                /apps\.apple\.com\/.*\/id(\d+)/i
+            ];
+
+            for (const pattern of patterns) {
+                const match = input.match(pattern);
+                if (match) {
+                    return match[1];
+                }
+            }
+
+            return null;
+        }
+
+        async function getAppPrice(appId, country) {
+            try {
+                const response = await fetch(`https://itunes.apple.com/lookup?id=${appId}&country=${country}`);
+                const data = await response.json();
+                
+                if (data.results && data.results.length > 0) {
+                    const app = data.results[0];
+                    const price = app.price || 0;
+                    const currency = app.currency;
+                    const symbol = getCurrencySymbol(currency);
+                    let priceText = price === 0 ? 'FREE' : `${symbol} ${price}`;
+                    let hkdText = '';
+
+                    if (showHKD && price > 0 && currency !== 'HKD') {
+                        const hkdPrice = convertToHKD(price, currency);
+                        if (hkdPrice) hkdText = hkdPrice;
+                    }
+
+                    return { price: priceText, hkdPrice: hkdText, url: app.trackViewUrl };
+                }
+                return { price: 'N/A', hkdPrice: '', url: '' };
+            } catch (error) {
+                return { price: 'ERROR', hkdPrice: '', url: '' };
+            }
+        }
+
+        async function displayAppWithPrices(trackId) {
+            const searchDiv = document.getElementById('searchResults');
+            searchDiv.dataset.trackId = trackId;
+            
+            searchDiv.innerHTML = '<div class="terminal-text loading">載入中...</div>';
+
+            if (showHKD && Object.keys(exchangeRates).length === 0) {
+                await getExchangeRates();
+            }
+
+            try {
+                const response = await fetch(`https://itunes.apple.com/lookup?id=${trackId}&country=us`);
+                const data = await response.json();
+                
+                if (data.results && data.results.length > 0) {
+                    const app = data.results[0];
+                    
+                    const promises = regions.map(async (region) => {
+                        const priceData = await getAppPrice(trackId, region.code);
+                        return { region: region.name, code: region.code, ...priceData };
+                    });
+
+                    const prices = await Promise.all(promises);
+
+                    let html = `
+                        <div class="app-header">
+                            <img src="${app.artworkUrl100}" alt="${app.trackName}">
+                            <div class="app-details">
+                                <div class="app-name">${app.trackName}</div>
+                                <div class="app-developer">${app.artistName}</div>
+                            </div>
+                        </div>
+                        <div class="price-grid">
+                            ${prices.map(p => `
+                                <a href="${p.url}" target="_blank" class="price-box">
+                                    <div class="region">${p.region}</div>
+                                    <div class="price-container">
+                                        <div class="price">${p.price}</div>
+                                        ${p.hkdPrice ? `<div class="price-hkd">${p.hkdPrice}</div>` : ''}
+                                    </div>
+                                </a>
+                            `).join('')}
+                        </div>
+                    `;
+                    
+                    searchDiv.innerHTML = html;
+                } else {
+                    searchDiv.innerHTML = '<div class="terminal-text error">找不到該 App</div>';
+                }
+            } catch (error) {
+                searchDiv.innerHTML = '<div class="terminal-text error">查詢失敗，請稍後再試</div>';
+            }
+        }
+
+        async function searchApp() {
+            const query = document.getElementById('searchInput').value;
+            const searchDiv = document.getElementById('searchResults');
+
+            if (!query) {
+                searchDiv.innerHTML = '<div class="terminal-text error">ERROR: 請輸入 App 名稱或連結</div>';
+                return;
+            }
+
+            searchDiv.innerHTML = '<div class="terminal-text loading">搜尋中...</div>';
+
+            const appId = extractAppId(query);
+            
+            if (appId) {
+                await displayAppWithPrices(appId);
+            } else {
+                try {
+                    const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&country=us&entity=software&limit=1`);
+                    const data = await response.json();
+
+                    if (data.results.length === 0) {
+                        searchDiv.innerHTML = '<div class="terminal-text error">找不到相關 App</div>';
+                        return;
+                    }
+
+                    await displayAppWithPrices(data.results[0].trackId);
+                } catch (error) {
+                    searchDiv.innerHTML = '<div class="terminal-text error">搜尋失敗，請稍後再試</div>';
+                }
+            }
+        }
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchApp();
+        });
+
+        getExchangeRates();
+    </script>
+</body>
+</html>
