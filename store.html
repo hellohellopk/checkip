@@ -79,11 +79,19 @@
             align-items: center;
             gap: 10px;
             margin-bottom: 12px;
+            position: relative;
         }
 
         .prompt {
             color: #00d4aa;
             font-weight: 600;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
         }
 
         input {
@@ -94,27 +102,59 @@
             font-family: inherit;
             font-size: 14px;
             outline: none;
-            padding: 8px 0;
+            padding: 8px 30px 8px 0;
         }
 
         input::placeholder {
             color: #666;
         }
 
-        button {
-            background: #007acc;
-            color: white;
+        .clear-btn {
+            position: absolute;
+            right: 0;
+            background: transparent;
             border: none;
-            padding: 8px 16px;
+            color: #666;
+            cursor: pointer;
+            padding: 4px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .clear-btn:hover {
+            color: #ffffff;
+        }
+
+        .clear-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .search-btn {
+            background: transparent;
+            color: #007acc;
+            border: none;
+            padding: 8px;
             border-radius: 4px;
             cursor: pointer;
             font-family: inherit;
             font-size: 12px;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        button:hover {
-            background: #005a9e;
+        .search-btn:hover {
+            color: #00a0ff;
+            background: rgba(0, 122, 204, 0.1);
+        }
+
+        .search-btn svg {
+            width: 20px;
+            height: 20px;
         }
 
         .currency-toggle {
@@ -162,6 +202,53 @@
             border-radius: 6px;
             border: 1px solid #404040;
             min-height: 200px;
+        }
+
+        .search-results-list {
+            padding: 12px;
+        }
+
+        .app-item {
+            background: #1e1e1e;
+            border: 1px solid #404040;
+            margin-bottom: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            gap: 16px;
+            padding: 16px;
+            transition: all 0.2s;
+        }
+
+        .app-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .app-item:hover {
+            border-color: #007acc;
+            background: #252525;
+        }
+
+        .app-item img {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+        }
+
+        .app-item-info {
+            flex: 1;
+        }
+
+        .app-item-name {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .app-item-developer {
+            color: #888;
+            font-size: 13px;
         }
 
         .app-header {
@@ -279,8 +366,19 @@
             <div class="search-box">
                 <div class="input-line">
                     <span class="prompt">search &gt;</span>
-                    <input type="text" id="searchInput" placeholder="輸入 App 名稱或 App Store 連結">
-                    <button onclick="searchApp()">執行</button>
+                    <div class="input-wrapper">
+                        <input type="text" id="searchInput" placeholder="輸入 App 名稱或 App Store 連結">
+                        <button class="clear-btn" id="clearBtn" onclick="clearSearch()">
+                            <svg viewBox="0 0 512 512" fill="currentColor">
+                                <path d="M256 48a208 208 0 1 1 0 416 208 208 0 1 1 0-416zm0 464A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM175 175c-9.4 9.4-9.4 24.6 0 33.9l47 47-47 47c-9.4 9.4-9.4 24.6 0 33.9s24.6 9.4 33.9 0l47-47 47 47c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-47-47 47-47c9.4-9.4 9.4-24.6 0-33.9s-24.6-9.4-33.9 0l-47 47-47-47c-9.4-9.4-24.6-9.4-33.9 0z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <button class="search-btn" onclick="searchApp()">
+                        <svg viewBox="0 0 512 512" fill="currentColor">
+                            <path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/>
+                        </svg>
+                    </button>
                 </div>
                 <div class="currency-toggle">
                     <span class="currency-label">當地貨幣</span>
@@ -309,6 +407,23 @@
         let showHKD = true;
         let exchangeRates = {};
 
+        const searchInput = document.getElementById('searchInput');
+        const clearBtn = document.getElementById('clearBtn');
+
+        searchInput.addEventListener('input', function() {
+            if (this.value.length > 0) {
+                clearBtn.style.display = 'flex';
+            } else {
+                clearBtn.style.display = 'none';
+            }
+        });
+
+        function clearSearch() {
+            searchInput.value = '';
+            clearBtn.style.display = 'none';
+            searchInput.focus();
+        }
+
         async function getExchangeRates() {
             try {
                 const apis = [
@@ -318,18 +433,34 @@
                     'https://api.exchangerate-api.com/v4/latest/try'
                 ];
 
-                const responses = await Promise.all(apis.map(api => fetch(api)));
-                const data = await Promise.all(responses.map(r => r.json()));
+                const responses = await Promise.all(apis.map(api => fetch(api).catch(err => {
+                    console.error('匯率 API 錯誤:', err);
+                    return null;
+                })));
+                
+                const validResponses = responses.filter(r => r !== null);
+                if (validResponses.length === 0) {
+                    throw new Error('所有匯率 API 請求失敗');
+                }
+                
+                const data = await Promise.all(validResponses.map(r => r.json()));
 
                 exchangeRates = {
-                    'USD': data[0].rates.HKD,
+                    'USD': data[0]?.rates?.HKD || 7.8,
                     'HKD': 1,
-                    'JPY': data[1].rates.JPY,
-                    'TRY': data[1].rates.TRY,
-                    'INR': data[1].rates.INR
+                    'JPY': data[1]?.rates?.JPY || 19.45,
+                    'TRY': data[1]?.rates?.TRY || 5.38,
+                    'INR': data[1]?.rates?.INR || 11.32
                 };
             } catch (error) {
                 console.error('無法獲取匯率:', error);
+                exchangeRates = {
+                    'USD': 7.8,
+                    'HKD': 1,
+                    'JPY': 19.45,
+                    'TRY': 5.38,
+                    'INR': 11.32
+                };
             }
         }
 
@@ -383,7 +514,9 @@
 
         async function getAppPrice(appId, country) {
             try {
-                const response = await fetch(`https://itunes.apple.com/lookup?id=${appId}&country=${country}`);
+                const response = await fetch(`https://itunes.apple.com/lookup?id=${appId}&country=${country}`, {
+                    timeout: 10000
+                });
                 const data = await response.json();
                 
                 if (data.results && data.results.length > 0) {
@@ -401,9 +534,10 @@
 
                     return { price: priceText, hkdPrice: hkdText, url: app.trackViewUrl };
                 }
-                return { price: 'N/A', hkdPrice: '', url: '' };
+                return { price: 'N/A', hkdPrice: '', url: '#' };
             } catch (error) {
-                return { price: 'ERROR', hkdPrice: '', url: '' };
+                console.error(`獲取 ${country} 價格失敗:`, error);
+                return { price: 'ERROR', hkdPrice: '', url: '#' };
             }
         }
 
@@ -419,6 +553,11 @@
 
             try {
                 const response = await fetch(`https://itunes.apple.com/lookup?id=${trackId}&country=us`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
                 
                 if (data.results && data.results.length > 0) {
@@ -457,12 +596,13 @@
                     searchDiv.innerHTML = '<div class="terminal-text error">找不到該 App</div>';
                 }
             } catch (error) {
-                searchDiv.innerHTML = '<div class="terminal-text error">查詢失敗，請稍後再試</div>';
+                console.error('查詢失敗:', error);
+                searchDiv.innerHTML = '<div class="terminal-text error">網路連線問題，請檢查連線或稍後再試</div>';
             }
         }
 
         async function searchApp() {
-            const query = document.getElementById('searchInput').value;
+            const query = searchInput.value;
             const searchDiv = document.getElementById('searchResults');
 
             if (!query) {
@@ -478,7 +618,12 @@
                 await displayAppWithPrices(appId);
             } else {
                 try {
-                    const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&country=us&entity=software&limit=1`);
+                    const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&country=us&entity=software&limit=5`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
                     const data = await response.json();
 
                     if (data.results.length === 0) {
@@ -486,14 +631,40 @@
                         return;
                     }
 
-                    await displayAppWithPrices(data.results[0].trackId);
+                    // 確保至少顯示 3 個，最多 5 個
+                    const results = data.results.slice(0, 5);
+                    
+                    if (results.length === 1) {
+                        // 如果只有 1 個結果，直接顯示價格
+                        await displayAppWithPrices(results[0].trackId);
+                    } else if (results.length === 2) {
+                        // 如果只有 2 個結果，也直接顯示第一個的價格
+                        await displayAppWithPrices(results[0].trackId);
+                    } else {
+                        // 3-5 個結果，顯示列表讓使用者選擇
+                        let html = '<div class="search-results-list">';
+                        results.forEach((app) => {
+                            html += `
+                                <div class="app-item" onclick="displayAppWithPrices(${app.trackId})">
+                                    <img src="${app.artworkUrl100}" alt="${app.trackName}">
+                                    <div class="app-item-info">
+                                        <div class="app-item-name">${app.trackName}</div>
+                                        <div class="app-item-developer">${app.artistName}</div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        searchDiv.innerHTML = html;
+                    }
                 } catch (error) {
-                    searchDiv.innerHTML = '<div class="terminal-text error">搜尋失敗，請稍後再試</div>';
+                    console.error('搜尋失敗:', error);
+                    searchDiv.innerHTML = '<div class="terminal-text error">網路連線問題，請檢查連線或稍後再試</div>';
                 }
             }
         }
 
-        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+        searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') searchApp();
         });
 
