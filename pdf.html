@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Converter - 完全免費版</title>
+    
+    <!-- 核心轉換庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/turndown@7.1.2/dist/turndown.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        /* 保留你原有的樣式 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+        .terminal { 
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 20px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.3);
+            max-width: 900px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .terminal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .terminal-button {
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            border: none;
+        }
+        .btn-close { background: #ff5f57; }
+        .btn-minimize { background: #ffbd2e; }
+        .btn-maximize { background: #28ca42; }
+        .badge {
+            flex: 1;
+            text-align: center;
+            color: white;
+            font-weight: 700;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .free-badge {
+            background: #28ca42;
+            padding: 5px 15px;
+            border-radius: 20px;
+            display: inline-block;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .terminal-body {
+            padding: 40px;
+            background: white;
+        }
+        
+        h1 { 
+            font-size: 28px;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+        .subtitle { 
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+        
+        .upload-box { 
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 30px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: linear-gradient(135deg, rgba(102,126,234,0.05) 0%, rgba(118,75,162,0.05) 100%);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .upload-box:hover { 
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102,126,234,0.2);
+        }
+        .upload-icon { 
+            font-size: 50px;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .upload-text { 
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .upload-hint { 
+            color: #999;
+            font-size: 12px;
+        }
+        input[type="file"] { display: none; }
+        
+        .format-section { 
+            margin: 35px 0;
+        }
+        .format-title { 
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 600;
+        }
+        .format-grid { 
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .format-card { 
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 25px 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .format-card:hover { 
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+        .format-card.active { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 10px 30px rgba(102,126,234,0.4);
+        }
+        .format-icon { 
+            font-size: 40px;
+            transition: all 0.3s;
+        }
+        .format-card.active .format-icon { color: white; }
+        .format-name { 
+            font-size: 13px;
+            font-weight: 700;
+            color: #333;
+        }
+        .format-card.active .format-name { color: white; }
+        
+        .convert-btn { 
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 5px 20px rgba(102,126,234,0.3);
+        }
+        .convert-btn:hover { 
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102,126,234,0.5);
+        }
+        .convert-btn:disabled { 
+            background: #bbb;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result-box { 
+            margin-top: 30px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(102,126,234,0.05) 0%, rgba(118,75,162,0.05) 100%);
+            border-radius: 15px;
+            display: none;
+        }
+        .spinner { 
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+        .success-icon { 
+            font-size: 60px;
+            margin-bottom: 15px;
+            text-align: center;
+            color: #27ae60;
+        }
+        .download-btn { 
+            padding: 14px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+        .download-btn:hover { 
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102,126,234,0.5);
+        }
+        pre { 
+            white-space: pre-wrap;
+            max-height: 350px;
+            overflow-y: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal">
+        <div class="terminal-header">
+            <div class="terminal-button btn-close"></div>
+            <div class="terminal-button btn-minimize"></div>
+            <div class="terminal-button btn-maximize"></div>
+            <div class="badge">
+                PDF CONVERTER
+                <span class="free-badge">100% FREE</span>
+            </div>
+        </div>
+        
+        <div class="terminal-body">
+            <h1>📄 PDF CONVERTER</h1>
+            <p class="subtitle">純前端轉換 • 無需 API • 完全免費</p>
+            
+            <div class="upload-box" id="uploadBox">
+                <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                <div class="upload-text">拖曳或點擊選擇檔案</div>
+                <div class="upload-hint">支援 PDF, JPG, PNG, DOCX, XLSX, TXT, HTML • 最大 10MB</div>
+                <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.docx,.txt,.xlsx,.html,.md">
+            </div>
+
+            <div class="format-section">
+                <div class="format-title">選擇輸出格式</div>
+                <div class="format-grid">
+                    <div class="format-card active" data-format="pdf">
+                        <div class="format-icon"><i class="fas fa-file-pdf"></i></div>
+                        <div class="format-name">PDF</div>
+                    </div>
+                    <div class="format-card" data-format="jpg">
+                        <div class="format-icon"><i class="fas fa-file-image"></i></div>
+                        <div class="format-name">JPG</div>
+                    </div>
+                    <div class="format-card" data-format="png">
+                        <div class="format-icon"><i class="fas fa-image"></i></div>
+                        <div class="format-name">PNG</div>
+                    </div>
+                    <div class="format-card" data-format="word">
+                        <div class="format-icon"><i class="fas fa-file-word"></i></div>
+                        <div class="format-name">Word</div>
+                    </div>
+                    <div class="format-card" data-format="excel">
+                        <div class="format-icon"><i class="fas fa-file-excel"></i></div>
+                        <div class="format-name">Excel</div>
+                    </div>
+                    <div class="format-card" data-format="text">
+                        <div class="format-icon"><i class="fas fa-file-alt"></i></div>
+                        <div class="format-name">TXT</div>
+                    </div>
+                    <div class="format-card" data-format="markdown">
+                        <div class="format-icon"><i class="fab fa-markdown"></i></div>
+                        <div class="format-name">Markdown</div>
+                    </div>
+                    <div class="format-card" data-format="html">
+                        <div class="format-icon"><i class="fas fa-code"></i></div>
+                        <div class="format-name">HTML</div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="convert-btn" id="convertBtn" disabled>
+                <i class="fas fa-magic"></i> 立即轉換
+            </button>
+
+            <div class="result-box" id="resultBox"></div>
+        </div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const uploadBox = document.getElementById('uploadBox');
+        const fileInput = document.getElementById('fileInput');
+        const convertBtn = document.getElementById('convertBtn');
+        const resultBox = document.getElementById('resultBox');
+        const formatCards = document.querySelectorAll('.format-card');
+        
+        let selectedFile = null;
+        let selectedFormat = 'pdf';
+        let fileContent = '';
+
+        // 格式選擇
+        formatCards.forEach(card => {
+            card.addEventListener('click', () => {
+                formatCards.forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                selectedFormat = card.dataset.format;
+            });
+        });
+
+        // 上傳功能
+        uploadBox.addEventListener('click', () => fileInput.click());
+        uploadBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadBox.style.borderColor = '#667eea';
+        });
+        uploadBox.addEventListener('dragleave', () => {
+            uploadBox.style.borderColor = '#ddd';
+        });
+        uploadBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBox.style.borderColor = '#ddd';
+            handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+        // 檔案處理
+        async function handleFile(file) {
+            if (!file) return;
+            
+            selectedFile = file;
+            const size = (file.size / 1024 / 1024).toFixed(2);
+            uploadBox.innerHTML = `
+                <div class="upload-icon"><i class="fas fa-check-circle"></i></div>
+                <div class="upload-text" style="color: #27ae60;">已載入: ${file.name}</div>
+                <div class="upload-hint">${size} MB</div>
+            `;
+            convertBtn.disabled = false;
+
+            try {
+                // PDF 讀取
+                if (file.type === 'application/pdf') {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                    fileContent = '';
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const textContent = await page.getTextContent();
+                        fileContent += textContent.items.map(item => item.str).join(' ') + '\n\n';
+                    }
+                }
+                // 圖片讀取
+                else if (file.type.startsWith('image/')) {
+                    fileContent = await readAsDataURL(file);
+                }
+                // Excel 讀取
+                else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const workbook = XLSX.read(arrayBuffer);
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    fileContent = XLSX.utils.sheet_to_csv(sheet);
+                }
+                // Word 讀取
+                else if (file.name.endsWith('.docx')) {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const result = await mammoth.extractRawText({ arrayBuffer });
+                    fileContent = result.value;
+                }
+                // 文字檔讀取
+                else {
+                    fileContent = await readAsText(file);
+                }
+            } catch (error) {
+                alert('讀取檔案錯誤: ' + error.message);
+                convertBtn.disabled = true;
+            }
+        }
+
+        // 轉換功能
+        convertBtn.addEventListener('click', async () => {
+            if (!selectedFile || !fileContent) return;
+
+            convertBtn.disabled = true;
+            resultBox.style.display = 'block';
+            resultBox.innerHTML = '<div class="spinner"></div><div style="text-align:center;color:#666;">處理中...</div>';
+
+            try {
+                await convertFile();
+            } catch (error) {
+                resultBox.innerHTML = `<div style="color:#e74c3c;padding:20px;">❌ 錯誤: ${error.message}</div>`;
+            }
+            
+            convertBtn.disabled = false;
+        });
+
+        // 核心轉換邏輯
+        async function convertFile() {
+            const { jsPDF } = window.jspdf;
+
+            switch (selectedFormat) {
+                case 'pdf':
+                    await convertToPDF();
+                    break;
+                case 'jpg':
+                case 'png':
+                    await convertToImage(selectedFormat);
+                    break;
+                case 'word':
+                    await convertToWord();
+                    break;
+                case 'excel':
+                    await convertToExcel();
+                    break;
+                case 'text':
+                    downloadText(fileContent, 'converted.txt');
+                    break;
+                case 'markdown':
+                    const md = new TurndownService().turndown(fileContent);
+                    downloadText(md, 'converted.md');
+                    break;
+                case 'html':
+                    downloadText(wrapHTML(fileContent), 'converted.html');
+                    break;
+            }
+        }
+
+        // PDF 轉換
+        async function convertToPDF() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF();
+            
+            if (selectedFile.type.startsWith('image/')) {
+                const img = new Image();
+                img.src = fileContent;
+                await new Promise(resolve => img.onload = resolve);
+                const imgWidth = 190;
+                const imgHeight = (img.height * imgWidth) / img.width;
+                pdf.addImage(fileContent, 'JPEG', 10, 10, imgWidth, imgHeight);
+            } else {
+                pdf.setFont('helvetica');
+                pdf.setFontSize(12);
+                const lines = pdf.splitTextToSize(fileContent.substring(0, 5000), 180);
+                pdf.text(lines, 10, 10);
+            }
+            
+            
+            const pdfBlob = pdf.output('blob');
+            const url = URL.createObjectURL(pdfBlob);
+            
+            resultBox.innerHTML = `
+                <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+                <div style="text-align:center;font-size:20px;font-weight:700;margin-bottom:20px;">✅ 轉換完成！</div>
+                <div style="text-align:center;">
+                    <a href="${url}" download="converted.pdf" class="download-btn">
+                        <i class="fas fa-download"></i> 下載 PDF
+                    </a>
+                </div>
+            `;
+        }
+
+        // 圖片轉換
+        async function convertToImage(format) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (selectedFile.type === 'application/pdf') {
+                const arrayBuffer = await selectedFile.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                const page = await pdf.getPage(1);
+                const viewport = page.getViewport({ scale: 2 });
+                
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                await page.render({ canvasContext: ctx, viewport }).promise;
+            } 
+            else if (selectedFile.type.startsWith('image/')) {
+                const img = new Image();
+                img.src = fileContent;
+                await new Promise(resolve => img.onload = resolve);
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+            } 
+            else {
+                canvas.width = 800;
+                canvas.height = 600;
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'black';
+                ctx.font = '16px monospace';
+                const lines = fileContent.substring(0, 2000).split('\n');
+                lines.forEach((line, i) => {
+                    ctx.fillText(line.substring(0, 80), 20, 30 + i * 20);
+                });
+            }
+            
+            const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+            const dataUrl = canvas.toDataURL(mimeType);
+            
+            resultBox.innerHTML = `
+                <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+                <div style="text-align:center;font-size:20px;font-weight:700;margin-bottom:20px;">✅ 轉換完成！</div>
+                <div style="text-align:center;">
+                    <img src="${dataUrl}" style="max-width:100%;border-radius:10px;margin:20px 0;">
+                    <br>
+                    <a href="${dataUrl}" download="converted.${format}" class="download-btn">
+                        <i class="fas fa-download"></i> 下載 ${format.toUpperCase()}
+                    </a>
+                </div>
+            `;
+        }
+
+        // Word 轉換
+        async function convertToWord() {
+            const { Document, Packer, Paragraph, TextRun } = docx;
+            
+            const paragraphs = fileContent.split('\n').map(line => 
+                new Paragraph({
+                    children: [new TextRun(line || ' ')]
+                })
+            );
+            
+            const doc = new Document({
+                sections: [{ children: paragraphs }]
+            });
+            
+            const blob = await Packer.toBlob(doc);
+            const url = URL.createObjectURL(blob);
+            
+            resultBox.innerHTML = `
+                <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+                <div style="text-align:center;font-size:20px;font-weight:700;margin-bottom:20px;">✅ 轉換完成！</div>
+                <pre style="max-height:200px;">${fileContent.substring(0, 500)}...</pre>
+                <div style="text-align:center;">
+                    <a href="${url}" download="converted.docx" class="download-btn">
+                        <i class="fas fa-download"></i> 下載 WORD
+                    </a>
+                </div>
+            `;
+        }
+
+        // Excel 轉換
+        async function convertToExcel() {
+            let data = [];
+            
+            if (selectedFile.name.endsWith('.xlsx') || selectedFile.name.endsWith('.xls')) {
+                // 已是 Excel，直接重新導出
+                const arrayBuffer = await selectedFile.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer);
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            } else {
+                // 將文字內容轉為表格
+                const lines = fileContent.split('\n').filter(line => line.trim());
+                data = lines.map(line => line.split(/[,\t]/).map(cell => cell.trim()));
+            }
+            
+            const worksheet = XLSX.utils.aoa_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+            
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            
+            resultBox.innerHTML = `
+                <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+                <div style="text-align:center;font-size:20px;font-weight:700;margin-bottom:20px;">✅ 轉換完成！</div>
+                <div style="text-align:center;">
+                    <a href="${url}" download="converted.xlsx" class="download-btn">
+                        <i class="fas fa-download"></i> 下載 EXCEL
+                    </a>
+                </div>
+            `;
+        }
+
+        // 文字下載
+        function downloadText(content, filename) {
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            resultBox.innerHTML = `
+                <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+                <div style="text-align:center;font-size:20px;font-weight:700;margin-bottom:20px;">✅ 轉換完成！</div>
+                <pre>${content.substring(0, 1000)}...</pre>
+                <div style="text-align:center;">
+                    <a href="${url}" download="${filename}" class="download-btn">
+                        <i class="fas fa-download"></i> 下載檔案
+                    </a>
+                </div>
+            `;
+        }
+
+        // HTML 包裝
+        function wrapHTML(content) {
+            return `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Converted Document</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 40px auto; 
+            padding: 20px; 
+            line-height: 1.6; 
+        }
+    </style>
+</head>
+<body>
+    <pre style="white-space: pre-wrap;">${content}</pre>
+</body>
+</html>`;
+        }
+
+        // 輔助函數
+        function readAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        function readAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+    </script>
+</body>
+</html>
