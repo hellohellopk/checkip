@@ -433,7 +433,14 @@
     </div>
 
     <script>
-        const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+        const CORS_PROXIES = [
+            'https://go.x2u.in/proxy?email=dollar-zone-strode@duck.com&apiKey=ca297586&url=',
+            'https://round-morning-c112.nippon-eb8.workers.dev/?url=',
+            'https://corsproxy.io/?',
+            'https://api.allorigins.win/raw?url='
+        ];
+        let currentProxyIndex = 0;
+        const CORS_PROXY = CORS_PROXIES[0];
         const iapCache = new Map();
         let currentApp = null;
         let EXCHANGE_RATES = {};
@@ -737,9 +744,33 @@
                     `https://apps.apple.com/${countryCode}/app/id${appId}`;
 
                 log(`URL: ${url}`);
-                const proxyUrl = CORS_PROXY + encodeURIComponent(url);
-                const response = await fetch(proxyUrl);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                // Try multiple CORS proxies if needed
+                let response;
+                let lastError;
+                for (let i = 0; i < CORS_PROXIES.length; i++) {
+                    try {
+                        const proxyUrl = CORS_PROXIES[i] + encodeURIComponent(url);
+                        log(`  嘗試 Proxy ${i+1}/${CORS_PROXIES.length}: ${CORS_PROXIES[i].substring(0, 30)}...`);
+                        response = await fetch(proxyUrl, { 
+                            method: 'GET',
+                            headers: { 'Accept': 'text/html,application/xhtml+xml' }
+                        });
+                        if (response.ok) {
+                            log(`  ✓ Proxy ${i+1} 成功 (${response.status})`);
+                            currentProxyIndex = i;
+                            break;
+                        } else {
+                            log(`  ✗ Proxy ${i+1} HTTP ${response.status}`);
+                        }
+                    } catch (err) {
+                        lastError = err;
+                        log(`  ✗ Proxy ${i+1} 失敗: ${err.message}`);
+                    }
+                }
+                if (!response || !response.ok) {
+                    throw lastError || new Error(`所有 ${CORS_PROXIES.length} 個 CORS proxy 都失敗`);
+                }
 
                 html = await response.text(); // 將 html 賦值
                 log(`✓ ${html.length} chars`);
