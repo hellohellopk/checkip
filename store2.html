@@ -493,19 +493,6 @@
             background: linear-gradient(135deg, #27c93f 0%, #00ff00 100%);
             transform: scale(1.05);
         }
-
-        .auto-loading-status {
-            color: #ffbd2e;
-            margin-top: 15px;
-            font-size: 13px;
-            text-shadow: 0 0 8px rgba(255, 189, 46, 0.5);
-            animation: blink 1s infinite;
-        }
-
-        @keyframes blink {
-            0%, 49% { opacity: 1; }
-            50%, 100% { opacity: 0.7; }
-        }
 </style>
 </head>
 <body>
@@ -793,12 +780,12 @@
                     log(`自動加載 ${i + 1}/${buttons.length}...`);
                     try {
                         button.click();
-                        await new Promise(resolve => setTimeout(resolve, 1500)); // 每個請求間隔 1.5 秒
+                        await new Promise(resolve => setTimeout(resolve, 2000));
                     } catch (e) {
-                        log('❌ 自動加載失敗: ' + e.message);
+                        log('⚠ 自動加載失敗: ' + e.message);
                     }
                 }
-                log('✅ 所有區域內購資訊已加載完成');
+                log('✅ 自動加載完成');
             }, 800);
 }
 
@@ -841,6 +828,55 @@
                 button.innerHTML = 'RETRY';
                 button.disabled = false;
             }
+        }
+
+        
+        // ========== CORS 代理自動切換邏輯 ==========
+        let currentCorProxyIndex = 0;
+        const CORS_PROXIES_EXTENDED = [
+            'https://go.x2u.in/proxy?email=dollar-zone-strode@duck.com&apiKey=ca297586&url=',
+            'https://round-morning-c112.nippon-eb8.workers.dev/?url=',
+            'https://test.cors.workers.dev/?',
+            'https://api.codetabs.com/v1/proxy?quest=',
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?',
+            'https://api.allorigins.win/?url='
+        ];
+
+        async function fetchWithCorProxyFallback(url, maxRetries = 5) {
+            let lastError = null;
+
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                const proxyIndex = (currentCorProxyIndex + attempt) % CORS_PROXIES_EXTENDED.length;
+                const proxy = CORS_PROXIES_EXTENDED[proxyIndex];
+                const proxyUrl = proxy + encodeURIComponent(url);
+
+                try {
+                    log(`  [CORS ${proxyIndex + 1}/${CORS_PROXIES_EXTENDED.length}] 嘗試代理...`);
+                    const response = await fetch(proxyUrl, {
+                        method: 'GET',
+                        headers: { 'Accept': 'text/html,application/xhtml+xml' }
+                    });
+
+                    if (response.ok) {
+                        log(`  ✓ CORS 代理 ${proxyIndex + 1} 成功`);
+                        currentCorProxyIndex = proxyIndex;
+                        return await response.text();
+                    } else {
+                        log(`  ✗ CORS 代理 ${proxyIndex + 1} HTTP ${response.status}`);
+                        lastError = new Error(`HTTP ${response.status}`);
+                    }
+                } catch (err) {
+                    log(`  ✗ CORS 代理 ${proxyIndex + 1} 失敗: ${err.message}`);
+                    lastError = err;
+                }
+
+                if (attempt < maxRetries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            }
+
+            throw lastError || new Error('所有代理均失敗');
         }
 
         async function getIAPByRegion(appId, countryCode, currency) {
@@ -1035,7 +1071,7 @@
 
     
 
-        // Go 按鈕事件綁定
+        // Go 按鈕事件
         document.addEventListener('DOMContentLoaded', function() {
             const goBtn = document.getElementById('searchGoBtn');
             if (goBtn) {
@@ -1049,7 +1085,7 @@
                             if (match && match[1]) {
                                 await searchAppById(match[1]);
                             } else {
-                                document.getElementById('searchResults').innerHTML = '<div class="error-text">// Error: Invalid App Store URL</div>';
+                                document.getElementById('searchResults').innerHTML = '<div class="error-text">// Error: Invalid URL</div>';
                             }
                         } else {
                             await searchApp(query);
@@ -1057,30 +1093,11 @@
                     }
                 });
 
-                // 也支援 Enter 鍵
                 document.getElementById('searchInput').addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') goBtn.click();
                 });
             }
         });
-
-
-        // Refresh 按鈕邏輯 - 在 loadIAP 完成後顯示
-        const originalLoadIAP = window.loadIAP;
-        window.loadIAP = async function(button, countryCode, appId, countryName, currency) {
-            const buttonRow = button.closest('.button-row');
-            if (buttonRow) {
-                const refreshBtn = buttonRow.querySelector('.refresh-btn');
-                if (refreshBtn) {
-                    refreshBtn.style.display = 'inline-block';
-                    refreshBtn.onclick = async function() {
-                        log('🔄 重新加載 ' + countryName + ' 內購資訊...');
-                        await window.loadIAP(button, countryCode, appId, countryName, currency);
-                    };
-                }
-            }
-            return await originalLoadIAP.call(this, button, countryCode, appId, countryName, currency);
-        };
 </script>
 </body>
 </html>
