@@ -414,7 +414,89 @@
         ::-webkit-scrollbar-track {
             background: #1a1a1a;
         }
-    </style>
+    
+        /* 港幣大字體 */
+        .iap-price-hkd-large {
+            color: #27c93f !important;
+            font-size: 14px !important;
+            font-weight: 700 !important;
+            margin-top: 6px !important;
+            text-shadow: 0 0 10px rgba(39, 201, 63, 0.5) !important;
+            display: block;
+        }
+
+        /* 搜尋框行容器 */
+        .search-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            margin-bottom: 25px;
+        }
+
+        .search-row input {
+            flex: 1;
+            padding: 12px 15px;
+            background: #1a1a1a;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 14px;
+            border-radius: 6px;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+            transition: all 0.3s;
+            margin-bottom: 0 !important;
+        }
+
+        .search-go-btn {
+            background: linear-gradient(135deg, #ffbd2e 0%, #5ac8fa 100%);
+            color: #1a1a1a;
+            border: none;
+            border-radius: 6px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 12px 16px;
+            height: 44px;
+            white-space: nowrap;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(255, 189, 46, 0.3);
+        }
+
+        .search-go-btn:hover {
+            background: linear-gradient(135deg, #27c93f 0%, #00ff00 100%);
+            transform: translateY(-2px);
+        }
+
+        /* VIEW IAP + Refresh 按鈕行容器 - Refresh 在左，VIEW IAP 在右 */
+        .button-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #5ac8fa 0%, #27c93f 100%);
+            color: #000;
+            border: none;
+            padding: 9px 14px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-family: 'SF Mono', Monaco, monospace;
+            min-width: 90px;
+            display: none;
+        }
+
+        .refresh-btn:hover {
+            background: linear-gradient(135deg, #27c93f 0%, #00ff00 100%);
+            transform: scale(1.05);
+        }
+</style>
 </head>
 <body>
     <div class="container">
@@ -428,7 +510,7 @@
         </div>
 
         <div class="rate-update" id="rateUpdate">// Loading exchange rates...</div>
-        <input type="text" id="searchInput" placeholder="$ search app_name or paste app_store_link">
+        <div class="search-row"><input type="text" id="searchInput" placeholder="$ search app_name or paste app_store_link"><button class="search-go-btn" id="searchGoBtn">Go</button></div>
         <div id="searchResults"></div>
     </div>
 
@@ -436,7 +518,8 @@
         const CORS_PROXIES = [
             'https://go.x2u.in/proxy?email=dollar-zone-strode@duck.com&apiKey=ca297586&url=',
             'https://round-morning-c112.nippon-eb8.workers.dev/?url=',
-            'https://corsproxy.io/?',
+            'https://test.cors.workers.dev/?',
+            'https://api.codetabs.com/v1/proxy?quest=',
             'https://api.allorigins.win/raw?url='
         ];
         let currentProxyIndex = 0;
@@ -596,11 +679,11 @@
         // --- 更改：更新 HTML 結構 ---
         async function displayApp(app) {
             const countries = [
-                { name: '🇺🇸 US', code: 'us', currency: 'USD' },
-                { name: '🇭🇰 HK', code: 'hk', currency: 'HKD' },
-                { name: '🇯🇵 JP', code: 'jp', currency: 'JPY' },
-                { name: '🇹🇷 TR', code: 'tr', currency: 'TRY' },
-                { name: '🇮🇳 IN', code: 'in', currency: 'INR' }
+                { name: '🇺🇸 美國US', code: 'us', currency: 'USD' },
+                { name: '🇭🇰 香港HK', code: 'hk', currency: 'HKD' },
+                { name: '🇯🇵 日本JP', code: 'jp', currency: 'JPY' },
+                { name: '🇹🇷 土耳其TR', code: 'tr', currency: 'TRY' },
+                { name: '🇮🇳 印度IN', code: 'in', currency: 'INR' }
             ];
 
             // 1. 建立 App 資訊卡片
@@ -675,7 +758,7 @@
                         priceHtml += '<div class="country">' + country.name + '</div>';
                         priceHtml += '<div class="price-info"><div class="price">' + priceDisplay + '</div>' + hkdDisplay + '</div>';
                         priceHtml += '</div>';
-                        priceHtml += '<button class="iap-button" onclick="loadIAP(this, \'' + country.code + '\', \'' + app.trackId + '\', \'' + country.name + '\', \'' + country.currency + '\')">VIEW IAP</button>';
+                        priceHtml += '<div class="button-row"><button class="refresh-btn" style="display:none">🔄 Refresh</button><button class="iap-button" onclick="loadIAP(this, \'' + country.code + '\', \'' + app.trackId + '\', \'' + country.name + '\', \'' + country.currency + '\')">VIEW IAP</button></div>';
                         priceHtml += '</div>';
                     } else {
                         priceHtml += '<div class="price-box"><div class="price-box-left"><div class="country">' + country.name + '</div><div class="price-info"><div class="price" style="color: #666;">N/A</div></div></div></div>';
@@ -717,7 +800,7 @@
                     let html = '<div class="iap-section"><div class="section-title">// ' + countryName + ' In-App Purchases (' + iapData.length + ')</div><div class="iap-list">';
                     iapData.forEach(item => {
                         html += '<div class="iap-item"><span class="iap-name">' + item.title + '</span><div class="iap-price-group"><span class="iap-price">' + item.price + '</span>';
-                        if (item.hkd) html += '<span class="iap-price-hkd">' + item.hkd + '</span>';
+                        if (item.hkd) html += '<span class="iap-price-hkd-large">' + item.hkd + '</span>';
                         html += '</div></div>';
                     });
                     html += '</div></div>';
@@ -922,6 +1005,45 @@
             }
         }
 
-    </script>
+    
+        // Go 按鈕事件
+        if (document.getElementById('searchGoBtn')) {
+            document.getElementById('searchGoBtn').addEventListener('click', async function() {
+                const input = document.getElementById('searchInput');
+                const query = input.value.trim();
+                if (query) {
+                    if (Object.keys(EXCHANGE_RATES).length === 0) await loadExchangeRates();
+                    if (query.startsWith('https://apps.apple.com')) {
+                        const match = query.match(/\/id(\d+)/);
+                        if (match && match[1]) {
+                            await searchAppById(match[1]);
+                        } else {
+                            document.getElementById('searchResults').innerHTML = '<div class="error-text">// Error: Invalid App Store URL</div>';
+                        }
+                    } else {
+                        await searchApp(query);
+                    }
+                }
+            });
+        }
+
+
+        // 在 loadIAP 函數中添加顯示 Refresh 按鈕的邏輯
+        const originalLoadIAP = window.loadIAP;
+        window.loadIAP = async function(button, countryCode, appId, countryName, currency) {
+            // 顯示同行的 Refresh 按鈕
+            const buttonRow = button.closest('.button-row');
+            if (buttonRow) {
+                const refreshBtn = buttonRow.querySelector('.refresh-btn');
+                if (refreshBtn) {
+                    refreshBtn.style.display = 'inline-block';
+                    refreshBtn.onclick = async function() {
+                        await window.loadIAP(button, countryCode, appId, countryName, currency);
+                    };
+                }
+            }
+            return await originalLoadIAP.call(this, button, countryCode, appId, countryName, currency);
+        };
+</script>
 </body>
 </html>
