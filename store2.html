@@ -423,7 +423,6 @@
             text-shadow: 0 0 10px rgba(39, 201, 63, 0.5) !important;
             display: block;
         }
-
         .search-row {
             display: flex;
             align-items: center;
@@ -431,21 +430,7 @@
             width: 100%;
             margin-bottom: 25px;
         }
-
-        .search-row input {
-            flex: 1;
-            padding: 12px 15px;
-            background: #1a1a1a;
-            border: 1px solid #00ff00;
-            color: #00ff00;
-            font-family: 'SF Mono', Monaco, monospace;
-            font-size: 14px;
-            border-radius: 6px;
-            box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
-            transition: all 0.3s;
-            margin-bottom: 0 !important;
-        }
-
+        .search-row input { flex: 1; margin-bottom: 0 !important; }
         .search-go-btn {
             background: linear-gradient(135deg, #ffbd2e 0%, #5ac8fa 100%);
             color: #1a1a1a;
@@ -458,21 +443,9 @@
             padding: 12px 16px;
             height: 44px;
             white-space: nowrap;
-            transition: all 0.3s;
-            box-shadow: 0 0 15px rgba(255, 189, 46, 0.3);
         }
-
-        .search-go-btn:hover {
-            background: linear-gradient(135deg, #27c93f 0%, #00ff00 100%);
-            transform: translateY(-2px);
-        }
-
-        .button-row {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
+        .search-go-btn:hover { background: linear-gradient(135deg, #27c93f 0%, #00ff00 100%); }
+        .button-row { display: flex; gap: 8px; align-items: center; }
         .refresh-btn {
             background: linear-gradient(135deg, #5ac8fa 0%, #27c93f 100%);
             color: #000;
@@ -482,17 +455,12 @@
             font-size: 11px;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s;
             white-space: nowrap;
             font-family: 'SF Mono', Monaco, monospace;
             min-width: 90px;
             display: none;
         }
-
-        .refresh-btn:hover {
-            background: linear-gradient(135deg, #27c93f 0%, #00ff00 100%);
-            transform: scale(1.05);
-        }
+        .refresh-btn:hover { background: linear-gradient(135deg, #27c93f 0%, #00ff00 100%); }
 </style>
 </head>
 <body>
@@ -770,20 +738,15 @@
             html += '</div>'; 
             document.getElementById('searchResults').innerHTML = html;
         
-
-            // 自動獲取所有區域的內購資訊
             setTimeout(async function() {
                 log('🤖 自動獲取內購資訊...');
                 const buttons = document.querySelectorAll('.iap-button');
                 for (let i = 0; i < buttons.length; i++) {
-                    const button = buttons[i];
                     log(`自動加載 ${i + 1}/${buttons.length}...`);
                     try {
-                        button.click();
+                        buttons[i].click();
                         await new Promise(resolve => setTimeout(resolve, 2000));
-                    } catch (e) {
-                        log('⚠ 自動加載失敗: ' + e.message);
-                    }
+                    } catch (e) {}
                 }
                 log('✅ 自動加載完成');
             }, 800);
@@ -828,55 +791,6 @@
                 button.innerHTML = 'RETRY';
                 button.disabled = false;
             }
-        }
-
-        
-        // ========== CORS 代理自動切換邏輯 ==========
-        let currentCorProxyIndex = 0;
-        const CORS_PROXIES_EXTENDED = [
-            'https://go.x2u.in/proxy?email=dollar-zone-strode@duck.com&apiKey=ca297586&url=',
-            'https://round-morning-c112.nippon-eb8.workers.dev/?url=',
-            'https://test.cors.workers.dev/?',
-            'https://api.codetabs.com/v1/proxy?quest=',
-            'https://api.allorigins.win/raw?url=',
-            'https://corsproxy.io/?',
-            'https://api.allorigins.win/?url='
-        ];
-
-        async function fetchWithCorProxyFallback(url, maxRetries = 5) {
-            let lastError = null;
-
-            for (let attempt = 0; attempt < maxRetries; attempt++) {
-                const proxyIndex = (currentCorProxyIndex + attempt) % CORS_PROXIES_EXTENDED.length;
-                const proxy = CORS_PROXIES_EXTENDED[proxyIndex];
-                const proxyUrl = proxy + encodeURIComponent(url);
-
-                try {
-                    log(`  [CORS ${proxyIndex + 1}/${CORS_PROXIES_EXTENDED.length}] 嘗試代理...`);
-                    const response = await fetch(proxyUrl, {
-                        method: 'GET',
-                        headers: { 'Accept': 'text/html,application/xhtml+xml' }
-                    });
-
-                    if (response.ok) {
-                        log(`  ✓ CORS 代理 ${proxyIndex + 1} 成功`);
-                        currentCorProxyIndex = proxyIndex;
-                        return await response.text();
-                    } else {
-                        log(`  ✗ CORS 代理 ${proxyIndex + 1} HTTP ${response.status}`);
-                        lastError = new Error(`HTTP ${response.status}`);
-                    }
-                } catch (err) {
-                    log(`  ✗ CORS 代理 ${proxyIndex + 1} 失敗: ${err.message}`);
-                    lastError = err;
-                }
-
-                if (attempt < maxRetries - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                }
-            }
-
-            throw lastError || new Error('所有代理均失敗');
         }
 
         async function getIAPByRegion(appId, countryCode, currency) {
@@ -1071,6 +985,86 @@
 
     
 
+        // ========== 區域專用 CORS 代理配置 ==========
+        // US=1, HK=2, JP=3, TR=4, IN=5
+        const CORS_PROXIES_BY_REGION = {
+            'us': 'https://go.x2u.in/proxy?email=dollar-zone-strode@duck.com&apiKey=ca297586&url=',
+            'hk': 'https://round-morning-c112.nippon-eb8.workers.dev/?url=',
+            'jp': 'https://test.cors.workers.dev/?',
+            'tr': 'https://api.codetabs.com/v1/proxy?quest=',
+            'in': 'https://api.allorigins.win/raw?url='
+        };
+
+        const CORS_PROXIES_FALLBACK = [
+            'https://go.x2u.in/proxy?email=dollar-zone-strode@duck.com&apiKey=ca297586&url=',
+            'https://round-morning-c112.nippon-eb8.workers.dev/?url=',
+            'https://test.cors.workers.dev/?',
+            'https://api.codetabs.com/v1/proxy?quest=',
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?'
+        ];
+
+        async function fetchWithRegionProxy(url, countryCode, maxRetries = 6) {
+            let lastError = null;
+
+            // 1. 優先使用區域專用代理
+            const primaryProxy = CORS_PROXIES_BY_REGION[countryCode.toLowerCase()];
+            if (primaryProxy) {
+                try {
+                    log(`  [主代理] ${countryCode.toUpperCase()} 使用專用代理...`);
+                    const proxyUrl = primaryProxy + encodeURIComponent(url);
+                    const response = await fetch(proxyUrl, {
+                        method: 'GET',
+                        headers: { 'Accept': 'text/html,application/xhtml+xml' }
+                    });
+
+                    if (response.ok) {
+                        log(`  ✓ ${countryCode.toUpperCase()} 專用代理成功`);
+                        return await response.text();
+                    } else {
+                        log(`  ✗ 專用代理 HTTP ${response.status}`);
+                        lastError = new Error(`HTTP ${response.status}`);
+                    }
+                } catch (err) {
+                    log(`  ✗ 專用代理失敗: ${err.message}`);
+                    lastError = err;
+                }
+            }
+
+            // 2. 專用代理失敗，嘗試備用代理（最多 6 次）
+            log(`  開始備用代理嘗試...`);
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                const proxyIndex = attempt % CORS_PROXIES_FALLBACK.length;
+                const proxy = CORS_PROXIES_FALLBACK[proxyIndex];
+                const proxyUrl = proxy + encodeURIComponent(url);
+
+                try {
+                    log(`  [CORS ${attempt + 1}/${maxRetries}] 嘗試備用代理 ${proxyIndex + 1}...`);
+                    const response = await fetch(proxyUrl, {
+                        method: 'GET',
+                        headers: { 'Accept': 'text/html,application/xhtml+xml' }
+                    });
+
+                    if (response.ok) {
+                        log(`  ✓ 備用代理 ${proxyIndex + 1} 成功`);
+                        return await response.text();
+                    } else {
+                        log(`  ✗ 備用代理 ${proxyIndex + 1} HTTP ${response.status}`);
+                        lastError = new Error(`HTTP ${response.status}`);
+                    }
+                } catch (err) {
+                    log(`  ✗ 備用代理 ${proxyIndex + 1} 失敗: ${err.message}`);
+                    lastError = err;
+                }
+
+                if (attempt < maxRetries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            }
+
+            throw lastError || new Error(`所有代理均失敗（已嘗試 ${maxRetries} 次）`);
+        }
+
         // Go 按鈕事件
         document.addEventListener('DOMContentLoaded', function() {
             const goBtn = document.getElementById('searchGoBtn');
@@ -1082,17 +1076,12 @@
                         if (Object.keys(EXCHANGE_RATES).length === 0) await loadExchangeRates();
                         if (query.startsWith('https://apps.apple.com')) {
                             const match = query.match(/\/id(\d+)/);
-                            if (match && match[1]) {
-                                await searchAppById(match[1]);
-                            } else {
-                                document.getElementById('searchResults').innerHTML = '<div class="error-text">// Error: Invalid URL</div>';
-                            }
+                            if (match && match[1]) await searchAppById(match[1]);
                         } else {
                             await searchApp(query);
                         }
                     }
                 });
-
                 document.getElementById('searchInput').addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') goBtn.click();
                 });
