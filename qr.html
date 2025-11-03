@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>即時二維碼會員卡 (縮小版)</title>
+    
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+
+    <style>
+        body {
+            background-color: #ffc107; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .card-container {
+            background-image: url('https://img.vki.im/file/1761634620183_image_1761634613687.jpg');
+            background-size: cover; 
+            background-repeat: no-repeat;
+            background-position: center;
+
+            width: 380px; 
+            height: 563px; /* 根據 1000x1483 的比例計算 */
+            
+            position: relative; /* 這是讓 QR Code 可以疊加在上面的關鍵 */
+            
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            border-radius: 20px; 
+            overflow: hidden; 
+        }
+
+        #qrcode-overlay {
+            position: absolute;
+            
+            /* --- 調整開始 --- */
+            /* 1. 將尺寸從 220px 縮小為 190px */
+            width: 190px; 
+            height: 190px;
+            /* --- 調整結束 --- */
+            
+            /* * 定位保持不變：
+             * top: 115px (從頂部向下推) 
+             * left: 50% / transform: translateX(-50%) (水平置中)
+             * 縮小尺寸後，它會自動在同一個中心點上變小。
+             */
+            top: 115px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            
+            padding: 5px; /* 白色邊框 */
+            background-color: #ffffff;
+            
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card-container">
+        
+        <div id="qrcode-overlay"></div>
+
+    </div>
+
+    <script>
+        // --- 1. 設定基本資料 (用於生成 QR Code) ---
+        const memberInfoBase = "GK0976632841,0,SILVER,002,2027-09-30";
+        const qrContainer = document.getElementById("qrcode-overlay");
+        let qrcodeInstance = null; 
+
+        // --- 2. 輔助函數：格式化日期為 YYYY-MM-DDTHH:MM:SS ---
+        function getISOStringWithoutMillis(date) {
+            function pad(number) {
+                return (number < 10) ? '0' + number : number;
+            }
+            const Y = date.getFullYear(), M = pad(date.getMonth() + 1), D = pad(date.getDate());
+            const h = pad(date.getHours()), m = pad(date.getMinutes()), s = pad(date.getSeconds());
+            return `${Y}-${M}-${D}T${h}:${m}:${s}`;
+        }
+
+        // --- 3. 核心函數：更新時間並重新生成 QR Code ---
+        function updateLiveQRCode() {
+            const now = new Date();
+            const liveTimestamp = getISOStringWithoutMillis(now);
+            const fullDataString = `${memberInfoBase},${liveTimestamp}`;
+            
+            if (qrcodeInstance) {
+                qrcodeInstance.makeCode(fullDataString);
+            } else {
+                qrcodeInstance = new QRCode(qrContainer, {
+                    text: fullDataString,
+                    
+                    /* --- 調整開始 --- */
+                    /* 1. 配合容器縮小，將 QR Code 圖片尺寸改為 180px (190px 減去兩邊 5px 邊框) */
+                    width: 180, 
+                    height: 180,
+                    
+                    /* 2. 降低容錯等級為 L (Low)，讓圖案更稀疏 (減少) */
+                    correctLevel : QRCode.CorrectLevel.L 
+                    /* --- 調整結束 --- */
+                });
+            }
+        }
+
+        // 立即執行一次
+        updateLiveQRCode();
+        
+        // 設定每秒更新一次
+        setInterval(updateLiveQRCode, 1000);
+    </script>
+
+</body>
+</html>
