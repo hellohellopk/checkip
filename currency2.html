@@ -3,257 +3,575 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>即時匯率計算器 (旗幟版)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <title>Currency Converter</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
-            font-family: 'Inter', 'Noto Sans TC', sans-serif;
-            background-color: #111827; /* bg-gray-900 */
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang TC', sans-serif;
+            background: #F2F2F7;
+            color: #000;
+            padding: 16px;
+            padding-top: 60px;
+            padding-bottom: 60px;
         }
-        /* Use Fira Code for mono elements */
-        .font-mono {
-            font-family: 'Fira Code', monospace;
+        
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #F2F2F7;
+            padding: 16px;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        /* Custom focus ring color */
-        .focus\:ring-emerald-500:focus {
-            --tw-ring-opacity: 1;
-            --tw-ring-color: #10B981 !important; /* emerald-500 */
+        
+        .edit-btn {
+            color: #007AFF;
+            font-size: 18px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 400;
         }
-        /* Blinking cursor effect */
-        .blinking-cursor {
-            border-right: 2px solid #10B981;
-            animation: blink 1s step-end infinite;
+        
+        .edit-btn.editing {
+            color: #FF3B30;
         }
-        @keyframes blink {
-            from, to { border-color: transparent }
-            50% { border-color: #10B981; }
+        
+        .add-btn {
+            width: 32px;
+            height: 32px;
+            background: #34C759;
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-size: 24px;
+            line-height: 32px;
+            text-align: center;
+            cursor: pointer;
+        }
+        
+        .title-section {
+            margin-bottom: 8px;
+        }
+        
+        .title {
+            font-size: 34px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        
+        .update-time {
+            font-size: 13px;
+            color: #8E8E93;
+            margin-bottom: 16px;
+        }
+        
+        .currency-card {
+            background: white;
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            min-height: 72px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .delete-btn {
+            position: absolute;
+            left: -8px;
+            width: 24px;
+            height: 24px;
+            background: #FF3B30;
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-size: 18px;
+            line-height: 24px;
+            text-align: center;
+            cursor: pointer;
+            display: none;
+        }
+        
+        .currency-card.editing .delete-btn {
+            display: block;
+        }
+        
+        .currency-card.editing {
+            margin-left: 32px;
+        }
+        
+        .flag-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            margin-right: 12px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .flag-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .currency-info {
+            flex: 1;
+            min-width: 0;
+            margin-right: 8px;
+        }
+        
+        .currency-code {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 1px;
+        }
+        
+        .currency-name {
+            font-size: 12px;
+            color: #8E8E93;
+            overflow: visible;
+            white-space: normal;
+            word-wrap: break-word;
+            line-height: 1.2;
+        }
+        
+        .currency-value {
+            text-align: right;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: center;
+            min-width: 0;
+            max-width: 48%;
+        }
+        
+        .amount-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 1px;
+        }
+        
+        .amount-input {
+            font-size: 18px;
+            font-weight: 600;
+            text-align: right;
+            border: none;
+            outline: none;
+            background: transparent;
+            width: 100%;
+            padding: 0;
+            line-height: 1.2;
+            word-break: break-all;
+        }
+        
+        .rate {
+            font-size: 10px;
+            color: #8E8E93;
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+        
+        .api-selector {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #E5E5EA;
+            font-size: 11px;
+            color: #8E8E93;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 50;
+            max-width: 200px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 14px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 70vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .currency-option {
+            padding: 12px;
+            border-bottom: 1px solid #E5E5EA;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        .currency-option:hover {
+            background: #F2F2F7;
+        }
+
+        .currency-option:last-child {
+            border-bottom: none;
+        }
+
+        .currency-option img {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            margin-right: 12px;
+        }
+
+        .modal-close {
+            margin-top: 16px;
+            padding: 12px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 375px) {
+            .amount-input {
+                font-size: 16px;
+            }
+            .currency-code {
+                font-size: 18px;
+            }
         }
     </style>
 </head>
-<body class="text-gray-200">
+<body>
+    <div class="header">
+        <button class="edit-btn" id="edit-btn">Edit</button>
+        <button class="add-btn" id="add-btn">+</button>
+    </div>
 
-    <div class="container mx-auto max-w-lg p-4 sm:p-6">
-        <main class="bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl shadow-emerald-900/20 border border-gray-700 overflow-hidden">
-            
-            <!-- Window Title Bar -->
-            <div class="h-10 bg-gray-900/80 flex items-center px-4 border-b border-gray-700">
-                <div class="flex space-x-2">
-                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                </div>
-                <p class="text-center text-gray-400 text-sm flex-grow font-mono">fx_rate_converter</p>
-            </div>
+    <div class="title-section">
+        <div class="title">Currency Converter</div>
+        <div class="update-time" id="update-time">Rates updated: Loading...</div>
+    </div>
 
-            <!-- Header Section with Input -->
-            <div class="text-center p-6 border-b border-gray-700">
-                <label for="base-amount-input" class="text-sm text-emerald-400 mb-2 block tracking-wider">兌換金額成港幣HKD</label>
-                <div class="relative inline-block">
-                    <input type="number" id="base-amount-input" value="100" class="text-4xl font-semibold text-white tracking-tighter text-center w-full bg-transparent focus:outline-none focus:ring-0 border-none p-0 font-mono">
-                    <span class="blinking-cursor absolute top-0 right-[-10px] h-full"></span>
-                </div>
-            </div>
+    <div id="currency-list"></div>
 
-            <!-- Currency List (Single Column) -->
-            <div id="currency-list" class="grid grid-cols-1 gap-3 p-6">
-                <!-- Loading State -->
-                <p class="col-span-1 text-center text-gray-500 font-mono">Initializing...</p>
-            </div>
+    <select class="api-selector" id="api-selector">
+        <option value="exchangeratefree">ExchangeRate-API (Free)</option>
+        <option value="fxratesapi">FXRatesAPI</option>
+        <option value="exchangerate">ExchangeRate-API</option>
+        <option value="openexchange">Open Exchange Rates</option>
+    </select>
 
-            <!-- Separator -->
-            <div class="border-t border-gray-700"></div>
-
-            <!-- Global Converter Section -->
-            <div class="p-6 bg-gray-900/50">
-                <h3 class="text-center font-bold text-emerald-400 mb-4 tracking-wider">全球貨幣轉換</h3>
-                <div class="grid grid-cols-1 gap-4">
-                    <input type="number" id="global-amount" value="100" class="w-full p-3 bg-gray-800 border border-gray-600 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-white font-mono">
-                    <div class="flex items-center gap-3">
-                        <select id="from-currency" class="w-full p-3 bg-gray-800 border border-gray-600 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-white font-mono"></select>
-                        <span class="text-emerald-400">→</span>
-                        <select id="to-currency" class="w-full p-3 bg-gray-800 border border-gray-600 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-white font-mono"></select>
-                    </div>
-                    <div id="global-result-container" class="text-right p-3 bg-gray-800 rounded-md border border-gray-700" style="display: none;">
-                        <p id="global-result" class="text-xl font-semibold text-white font-mono"></p>
-                    </div>
-                </div>
-            </div>
-        </main>
-        
-        <footer class="text-center mt-6">
-            <p id="timestamp" class="text-xs text-gray-500 font-mono"></p>
-        </footer>
+    <div class="modal" id="add-modal">
+        <div class="modal-content">
+            <div class="modal-title">Add Currency</div>
+            <div id="currency-options"></div>
+            <button class="modal-close" id="modal-close">Cancel</button>
+        </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const apiKey = 'fxr_live_38ad3c55b228cc844e71347bdb45cb3c63df';
-            
-            const currencyInfo = {
-                USD: { name: '美元', engName: 'US Dollar', code: 'us', emoji: '🇺🇸' },
-                EUR: { name: '歐元', engName: 'Euro', code: 'eu', emoji: '🇪🇺' },
-                JPY: { name: '日元', engName: 'Japanese Yen', code: 'jp', emoji: '🇯🇵' },
-                GBP: { name: '英鎊', engName: 'British Pound', code: 'gb', emoji: '🇬🇧' },
-                CNY: { name: '人民幣', engName: 'Chinese Yuan', code: 'cn', emoji: '🇨🇳' },
-                AUD: { name: '澳元', engName: 'Australian Dollar', code: 'au', emoji: '🇦🇺' },
-                CAD: { name: '加拿大元', engName: 'Canadian Dollar', code: 'ca', emoji: '🇨🇦' },
-                CHF: { name: '瑞士法郎', engName: 'Swiss Franc', code: 'ch', emoji: '🇨🇭' },
-                HKD: { name: '港幣', engName: 'Hong Kong Dollar', code: 'hk', emoji: '🇭🇰' },
-                SGD: { name: '新加坡元', engName: 'Singapore Dollar', code: 'sg', emoji: '🇸🇬' },
-                SEK: { name: '瑞典克朗', engName: 'Swedish Krona', code: 'se', emoji: '🇸🇪' },
-                KRW: { name: '韓元', engName: 'South Korean Won', code: 'kr', emoji: '🇰🇷' },
-                NOK: { name: '挪威克朗', engName: 'Norwegian Krone', code: 'no', emoji: '🇳🇴' },
-                NZD: { name: '紐西蘭元', engName: 'New Zealand Dollar', code: 'nz', emoji: '🇳🇿' },
-                INR: { name: '印度盧比', engName: 'Indian Rupee', code: 'in', emoji: '🇮🇳' },
-                MXN: { name: '墨西哥比索', engName: 'Mexican Peso', code: 'mx', emoji: '🇲🇽' },
-                TWD: { name: '新台幣', engName: 'New Taiwan Dollar', code: 'tw', emoji: '🇹🇼' },
-                ZAR: { name: '南非蘭特', engName: 'South African Rand', code: 'za', emoji: '🇿🇦' },
-                BRL: { name: '巴西雷亞爾', engName: 'Brazilian Real', code: 'br', emoji: '🇧🇷' },
-                TRY: { name: '土耳其里拉', engName: 'Turkish Lira', code: 'tr', emoji: '🇹🇷' },
-                NGN: { name: '奈及利亞奈拉', engName: 'Nigerian Naira', code: 'ng', emoji: '🇳🇬' },
-                THB: { name: '泰銖', engName: 'Thai Baht', code: 'th', emoji: '🇹🇭' },
-                PHP: { name: '菲律賓比索', engName: 'Philippine Peso', code: 'ph', emoji: '🇵🇭' },
-                VND: { name: '越南盾', engName: 'Vietnamese Dong', code: 'vn', emoji: '🇻🇳' },
-                IDR: { name: '印尼盾', engName: 'Indonesian Rupiah', code: 'id', emoji: '🇮🇩' },
-                MYR: { name: '馬來西亞令吉', engName: 'Malaysian Ringgit', code: 'my', emoji: '🇲🇾' },
-                RUB: { name: '俄羅斯盧布', engName: 'Russian Ruble', code: 'ru', emoji: '🇷🇺' }
-            };
+        const API_CONFIGS = {
+            fxratesapi: {
+                name: 'FXRatesAPI',
+                key: 'fxr_live_38ad3c55b228cc844e71347bdb45cb3c63df',
+                buildUrl: (key, codes) => `https://api.fxratesapi.com/latest?api_key=${key}&base=USD&currencies=${codes.join(',')}`,
+                parseResponse: (data) => ({ success: data.success, rates: data.rates, timestamp: data.timestamp })
+            },
+            exchangeratefree: {
+                name: 'ExchangeRate-API (Free)',
+                key: '',
+                buildUrl: (key, codes) => `https://api.exchangerate-api.com/v4/latest/USD`,
+                parseResponse: (data) => ({ success: true, rates: data.rates, timestamp: data.time_last_updated })
+            },
+            exchangerate: {
+                name: 'ExchangeRate-API',
+                key: '0d5edd3dbe453790b0bcc4d6',
+                buildUrl: (key, codes) => `https://v6.exchangerate-api.com/v6/${key}/latest/USD`,
+                parseResponse: (data) => ({ success: data.result === 'success', rates: data.conversion_rates, timestamp: data.time_last_update_unix })
+            },
+            openexchange: {
+                name: 'Open Exchange Rates',
+                key: '219fb31cd84b49acb19edb3cb5e7cdfd',
+                buildUrl: (key, codes) => `https://openexchangerates.org/api/latest.json?app_id=${key}`,
+                parseResponse: (data) => ({ success: true, rates: data.rates, timestamp: data.timestamp })
+            }
+        };
 
-            const topSectionCodes = ['USD', 'JPY', 'TRY', 'EUR', 'CNY', 'TWD', 'INR', 'GBP', 'AUD', 'CAD', 'SGD', 'KRW', 'NGN', 'HKD'];
-            const allNeededCodes = [...new Set([...topSectionCodes, ...Object.keys(currencyInfo)])];
-            const apiUrl = `https://api.fxratesapi.com/latest?api_key=${apiKey}&base=USD&currencies=${allNeededCodes.join(',')}`;
-            
+        const allCurrencyInfo = {
+            HKD: { name: 'Hong Kong Dollar', code: 'hk', symbol: 'HK$' },
+            USD: { name: 'United States Dollar', code: 'us', symbol: '$' },
+            JPY: { name: 'Japanese Yen', code: 'jp', symbol: '¥' },
+            INR: { name: 'Indian Rupee', code: 'in', symbol: '₹' },
+            TRY: { name: 'Turkish Lira', code: 'tr', symbol: '₺' },
+            CNY: { name: 'Chinese Yuan', code: 'cn', symbol: '¥' },
+            TWD: { name: 'New Taiwan Dollar', code: 'tw', symbol: 'NT$' },
+            NGN: { name: 'Nigerian Naira', code: 'ng', symbol: '₦' },
+            EUR: { name: 'Euro', code: 'eu', symbol: '€' },
+            GBP: { name: 'British Pound', code: 'gb', symbol: '£' },
+            AUD: { name: 'Australian Dollar', code: 'au', symbol: 'A$' },
+            CAD: { name: 'Canadian Dollar', code: 'ca', symbol: 'C$' },
+            CHF: { name: 'Swiss Franc', code: 'ch', symbol: 'CHF' },
+            SGD: { name: 'Singapore Dollar', code: 'sg', symbol: 'S$' },
+            KRW: { name: 'South Korean Won', code: 'kr', symbol: '₩' },
+            SEK: { name: 'Swedish Krona', code: 'se', symbol: 'kr' },
+            NZD: { name: 'New Zealand Dollar', code: 'nz', symbol: 'NZ$' },
+            MXN: { name: 'Mexican Peso', code: 'mx', symbol: 'MX$' },
+            ZAR: { name: 'South African Rand', code: 'za', symbol: 'R' },
+            BRL: { name: 'Brazilian Real', code: 'br', symbol: 'R$' },
+            THB: { name: 'Thai Baht', code: 'th', symbol: '฿' },
+            PHP: { name: 'Philippine Peso', code: 'ph', symbol: '₱' },
+            VND: { name: 'Vietnamese Dong', code: 'vn', symbol: '₫' },
+            IDR: { name: 'Indonesian Rupiah', code: 'id', symbol: 'Rp' },
+            MYR: { name: 'Malaysian Ringgit', code: 'my', symbol: 'RM' },
+            RUB: { name: 'Russian Ruble', code: 'ru', symbol: '₽' },
+            NOK: { name: 'Norwegian Krone', code: 'no', symbol: 'kr' }
+        };
+
+        const defaultCurrencies = ['HKD', 'USD', 'JPY', 'INR', 'TRY', 'CNY', 'TWD', 'NGN', 'EUR'];
+        let displayedCurrencies = [...defaultCurrencies];
+        let currentRates = null;
+        let ratesVsHKD = null;
+        let isUpdating = false;
+        let isEditMode = false;
+
+        async function fetchRates(apiType) {
+            const config = API_CONFIGS[apiType];
+            const apiUrl = config.buildUrl(config.key, Object.keys(allCurrencyInfo));
+
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                const parsed = config.parseResponse(data);
+                
+                const updateTime = new Date(parsed.timestamp * 1000);
+                document.getElementById('update-time').textContent = 
+                    `Rates updated: ${updateTime.toLocaleString('en-US', { month: 'long', day: 'numeric' })} at ${updateTime.toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+                
+                // Convert USD-based rates to HKD-based rates
+                currentRates = parsed.rates;
+                const hkdPerUsd = currentRates['HKD'];
+                ratesVsHKD = {};
+                for (const code in currentRates) {
+                    // Calculate how much of each currency equals 1 HKD
+                    ratesVsHKD[code] = currentRates[code] / hkdPerUsd;
+                }
+                ratesVsHKD['HKD'] = 1;
+                
+                return ratesVsHKD;
+            } catch (error) {
+                console.error('Error fetching rates:', error);
+                document.getElementById('update-time').textContent = 'Error loading rates';
+                return null;
+            }
+        }
+
+        function formatNumberWithCommas(num, decimals = 2) {
+            const parts = num.toFixed(decimals).split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            return parts.join('.');
+        }
+
+        function updateAllAmounts(changedCode, changedAmount) {
+            if (isUpdating || !ratesVsHKD) return;
+            isUpdating = true;
+
+            const changedRate = ratesVsHKD[changedCode];
+            const baseHKD = changedAmount / changedRate;
+
+            displayedCurrencies.forEach(code => {
+                if (code === changedCode) return;
+                
+                const input = document.getElementById(`input-${code}`);
+                if (input) {
+                    const rate = ratesVsHKD[code];
+                    const amount = baseHKD * rate;
+                    const info = allCurrencyInfo[code];
+                    input.value = `${info.symbol} ${formatNumberWithCommas(amount)}`;
+                }
+            });
+
+            isUpdating = false;
+        }
+
+        function renderCurrencies() {
             const listElement = document.getElementById('currency-list');
-            const amountInput = document.getElementById('base-amount-input');
-            const timestampEl = document.getElementById('timestamp');
+            listElement.innerHTML = '';
 
-            const globalAmountInput = document.getElementById('global-amount');
-            const fromCurrencySelect = document.getElementById('from-currency');
-            const toCurrencySelect = document.getElementById('to-currency');
-            const globalResultEl = document.getElementById('global-result');
-            const globalResultContainer = document.getElementById('global-result-container');
+            displayedCurrencies.forEach((code, index) => {
+                const info = allCurrencyInfo[code];
+                if (!info || !ratesVsHKD[code]) return;
 
-            async function fetchRates() {
-                try {
-                    const response = await fetch(apiUrl);
-                    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-                    const data = await response.json();
-                    if (!data.success) throw new Error(data.error?.info || 'API Error');
-                    
-                    const updateTime = new Date(data.timestamp * 1000);
-                    timestampEl.textContent = `[RATES_UPDATED]: ${updateTime.toISOString()}`;
-                    
-                    return data.rates;
-                } catch (error) {
-                    console.error('Fetch Rates Error:', error);
-                    listElement.innerHTML = `<p class="col-span-1 text-center text-red-500 font-mono">Error: Failed to load live rates.</p>`;
-                    timestampEl.textContent = '[ERROR]: CONNECTION_FAILED';
-                    return null;
-                }
-            }
+                const rate = ratesVsHKD[code];
+                const defaultAmount = 1000 * rate;
+                const isFixed = defaultCurrencies.includes(code);
+                
+                const card = document.createElement('div');
+                card.className = 'currency-card';
+                card.dataset.code = code;
+                if (isEditMode) card.classList.add('editing');
+                
+                const flagUrl = `https://flagcdn.com/w160/${info.code}.png`;
+                
+                // Calculate rate display correctly: 1 HKD = X [currency code]
+                // This shows how much of the foreign currency you get for 1 HKD
+                const rateDisplay = code === 'HKD' ? '' : `1 HKD = ${formatNumberWithCommas(rate, 4)} ${code}`;
+                
+                card.innerHTML = `
+                    ${!isFixed ? '<button class="delete-btn" data-code="' + code + '">−</button>' : ''}
+                    <div class="flag-icon">
+                        <img src="${flagUrl}" alt="${code}" onerror="this.style.display='none'" />
+                    </div>
+                    <div class="currency-info">
+                        <div class="currency-code">${code}</div>
+                        <div class="currency-name">${info.name}</div>
+                    </div>
+                    <div class="currency-value">
+                        <div class="amount-wrapper">
+                            <input type="text" 
+                                   id="input-${code}" 
+                                   class="amount-input" 
+                                   value="${info.symbol} ${formatNumberWithCommas(defaultAmount)}" 
+                                   data-code="${code}" 
+                                   data-symbol="${info.symbol}" />
+                        </div>
+                        <div class="rate">${rateDisplay}</div>
+                    </div>
+                `;
+                
+                listElement.appendChild(card);
 
-            const ratesVsUsd = await fetchRates();
-
-            if (ratesVsUsd) {
-                const hkdPerUsd = ratesVsUsd['HKD'];
-                const ratesVsHkd = {};
-                for (const code in ratesVsUsd) {
-                    ratesVsHkd[code] = ratesVsUsd[code] / hkdPerUsd;
-                }
-
-                setupTopCalculator(ratesVsHkd);
-                setupGlobalConverter(ratesVsUsd);
-            }
-
-            function setupTopCalculator(rates) {
-                const ratesInHkd = {};
-                for (const code in rates) { ratesInHkd[code] = 1 / rates[code]; }
-                ratesInHkd['HKD'] = 1;
-
-                const priorityCodes = ['HKD', 'USD', 'JPY', 'CNY'];
-                const otherCodes = topSectionCodes.filter(code => !priorityCodes.includes(code)).sort();
-                const sortedCodes = [...priorityCodes, ...otherCodes];
-
-                function updateList() {
-                    const currentAmount = parseFloat(amountInput.value) || 0;
-                    listElement.innerHTML = ''; 
-
-                    sortedCodes.forEach(code => {
-                        const value = (ratesInHkd[code] || 0) * currentAmount;
-                        const info = currencyInfo[code];
-                        if (!info) return;
-
-                        const item = document.createElement('div');
-                        const isPriority = priorityCodes.includes(code);
-                        item.className = `flex items-center space-x-4 p-3 rounded-lg bg-gray-900/50 border ${isPriority ? 'border-emerald-500/30' : 'border-blue-500/20'}`;
-                        
-                        const flagUrl = `https://flagcdn.com/w40/${info.code}.png`;
-
-                        item.innerHTML = `
-                            <img src="${flagUrl}" alt="${info.name}" class="w-9 h-9 object-cover rounded-full shadow-lg flex-shrink-0">
-                            <div class="flex-grow text-left overflow-hidden">
-                                <p class="font-semibold truncate ${isPriority ? 'text-emerald-400' : 'text-blue-400'}">
-                                    <span class="font-mono">${code}</span>
-                                    <span class="text-xs text-gray-400">${info.name}</span>
-                                </p>
-                                <p class="text-xs text-gray-500 truncate">${info.engName}</p>
-                            </div>
-                            <p class="text-xl font-semibold text-white font-mono">
-                                ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </p>
-                        `;
-                        listElement.appendChild(item);
+                const deleteBtn = card.querySelector('.delete-btn');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const codeToDelete = this.dataset.code;
+                        displayedCurrencies = displayedCurrencies.filter(c => c !== codeToDelete);
+                        renderCurrencies();
                     });
                 }
-                amountInput.addEventListener('input', updateList);
-                updateList();
-            }
 
-            function setupGlobalConverter(rates) {
-                const currencyCodes = Object.keys(currencyInfo).sort();
-
-                currencyCodes.forEach(code => {
-                    const info = currencyInfo[code];
-                    if (rates[code] && info) {
-                        const optionText = `${info.emoji} ${code} - ${info.name} / ${info.engName}`;
-                        fromCurrencySelect.add(new Option(optionText, code));
-                        toCurrencySelect.add(new Option(optionText, code));
-                    }
+                const input = document.getElementById(`input-${code}`);
+                
+                input.addEventListener('focus', function() {
+                    const symbol = this.dataset.symbol;
+                    const value = this.value.replace(symbol, '').replace(/,/g, '').trim();
+                    this.value = value;
                 });
 
-                fromCurrencySelect.value = 'USD';
-                toCurrencySelect.value = 'HKD';
+                input.addEventListener('blur', function() {
+                    const symbol = this.dataset.symbol;
+                    let value = parseFloat(this.value.replace(/,/g, ''));
+                    if (isNaN(value)) value = 0;
+                    this.value = `${symbol} ${formatNumberWithCommas(value)}`;
+                });
 
-                function convertGlobal() {
-                    const amount = parseFloat(globalAmountInput.value);
-                    const fromCode = fromCurrencySelect.value;
-                    const toCode = toCurrencySelect.value;
-
-                    if (isNaN(amount)) {
-                        globalResultEl.textContent = 'Invalid Amount'; return;
+                input.addEventListener('input', function() {
+                    const code = this.dataset.code;
+                    const value = parseFloat(this.value.replace(/[^0-9.-]/g, ''));
+                    
+                    if (!isNaN(value) && value >= 0) {
+                        updateAllAmounts(code, value);
                     }
+                });
+            });
+        }
 
-                    const fromRate = rates[fromCode];
-                    const toRate = rates[toCode];
-                    const result = (amount / fromRate) * toRate;
+        function showAddModal() {
+            const modal = document.getElementById('add-modal');
+            const optionsContainer = document.getElementById('currency-options');
+            optionsContainer.innerHTML = '';
 
-                    globalResultEl.innerHTML = `
-                        ${result.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})} 
-                        <span class="text-gray-500">${toCode}</span>`;
-                    globalResultContainer.style.display = 'block';
+            Object.keys(allCurrencyInfo).forEach(code => {
+                if (!displayedCurrencies.includes(code) && ratesVsHKD[code]) {
+                    const info = allCurrencyInfo[code];
+                    const option = document.createElement('div');
+                    option.className = 'currency-option';
+                    option.innerHTML = `
+                        <img src="https://flagcdn.com/w80/${info.code}.png" alt="${code}" />
+                        <div>
+                            <div style="font-weight: 600;">${code}</div>
+                            <div style="font-size: 12px; color: #8E8E93;">${info.name}</div>
+                        </div>
+                    `;
+                    option.addEventListener('click', () => {
+                        displayedCurrencies.push(code);
+                        modal.classList.remove('active');
+                        renderCurrencies();
+                    });
+                    optionsContainer.appendChild(option);
                 }
+            });
 
-                globalAmountInput.addEventListener('input', convertGlobal);
-                fromCurrencySelect.addEventListener('change', convertGlobal);
-                toCurrencySelect.addEventListener('change', convertGlobal);
-                convertGlobal();
+            modal.classList.add('active');
+        }
+
+        async function initialize() {
+            const apiType = document.getElementById('api-selector').value;
+            const rates = await fetchRates(apiType);
+            if (rates) {
+                renderCurrencies();
             }
+        }
+
+        document.getElementById('edit-btn').addEventListener('click', () => {
+            isEditMode = !isEditMode;
+            const btn = document.getElementById('edit-btn');
+            btn.textContent = isEditMode ? 'Done' : 'Edit';
+            btn.classList.toggle('editing');
+            renderCurrencies();
         });
+
+        document.getElementById('add-btn').addEventListener('click', showAddModal);
+        document.getElementById('modal-close').addEventListener('click', () => {
+            document.getElementById('add-modal').classList.remove('active');
+        });
+
+        document.getElementById('api-selector').addEventListener('change', initialize);
+
+        initialize();
     </script>
 </body>
 </html>
-
-

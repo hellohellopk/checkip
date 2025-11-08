@@ -1,178 +1,741 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Currency Converter | 貨幣轉換器</title>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#232b36; color:#fff; padding:20px; }
-    .container { max-width:400px; margin:0 auto; background:#253041; border-radius:15px; box-shadow:0 6px 24px rgba(0,0,0,.4); overflow:hidden; }
-    .header { background:#374263; padding:24px 20px 20px; text-align:center; }
-    .header h1 { color:#a2c5f4; font-size:21px; letter-spacing:2px; }
-    .header .update-time { color:#cbe9ff; font-size:13px; margin-top:6px; }
-    .input-section { padding:24px 20px; text-align:center; }
-    .input-label { font-size:15px; color:#44fdba; margin-bottom:8px; }
-    .amount-input { background:transparent; border:none; color:#fff; font-size:48px; font-weight:bold; text-align:center; width:100%; outline:none; margin-bottom:12px; }
-    .selector { width:100%; padding:10px; background:#242e3f; border:1px solid #335483; border-radius:6px; color:#fff; font-size:16px; margin-bottom:24px; outline:none; }
-    .currency-list { padding-bottom:16px; }
-    .currency-item { background:#29344b; border:1px solid #2c3e50; border-radius:13px; display:flex; align-items:center; margin:12px 18px; padding:14px 10px; }
-    .flag { width:36px; height:24px; border-radius:6px; margin-right:16px; display:flex; align-items:center; justify-content:center; font-size:22px; }
-    .currency-info { display:flex; flex-direction:column; }
-    .currency-code { color:#5cdfc3; font-weight:bold; font-size:17px; }
-    .currency-ch { color:#9bb4d0; font-size:14px; }
-    .currency-en { color:#84c9ff; font-size:13px; margin-top:2px; }
-    .currency-value { flex:1; text-align:right; color:#fff; font-size:22px; font-weight:bold; }
-    .loading, .error { text-align:center; padding:32px 0; color:#84c9ff; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX Terminal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Mono:wght@400;500;600&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+            background: #1E1E1E;
+            color: #00FF00;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        
+        .terminal-window {
+            max-width: 900px;
+            margin: 20px auto;
+            background: #1E1E1E;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+        
+        .terminal-header {
+            background: #2D2D2D;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #3D3D3D;
+        }
+        
+        .terminal-buttons {
+            display: flex;
+            gap: 8px;
+            margin-right: 16px;
+        }
+        
+        .terminal-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .btn-red {
+            background: #FF5F56;
+        }
+        
+        .btn-yellow {
+            background: #FFBD2E;
+        }
+        
+        .btn-green {
+            background: #27C93F;
+        }
+        
+        .terminal-title {
+            font-size: 13px;
+            color: #A0A0A0;
+            font-weight: 500;
+        }
+        
+        .terminal-body {
+            padding: 16px;
+            min-height: 400px;
+        }
+        
+        .prompt-line {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .prompt {
+            color: #27C93F;
+            margin-right: 8px;
+            font-weight: 600;
+        }
+        
+        .command {
+            color: #00D4FF;
+            font-weight: 500;
+        }
+        
+        .title-section {
+            margin-bottom: 16px;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #00D4FF;
+            margin-bottom: 4px;
+        }
+        
+        .update-time {
+            font-size: 11px;
+            color: #808080;
+            margin-bottom: 12px;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: auto auto 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 8px 12px;
+            border: 1px solid #00FF00;
+            background: transparent;
+            color: #00FF00;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        
+        .btn:hover {
+            background: #00FF00;
+            color: #1E1E1E;
+        }
+        
+        .btn-add {
+            border-color: #27C93F;
+            color: #27C93F;
+        }
+        
+        .btn-add:hover {
+            background: #27C93F;
+            color: #1E1E1E;
+        }
+        
+        .btn-edit.editing {
+            border-color: #FF5F56;
+            color: #FF5F56;
+        }
+        
+        .btn-edit.editing:hover {
+            background: #FF5F56;
+        }
+        
+        .currency-card {
+            background: #2D2D2D;
+            border: 1px solid #3D3D3D;
+            border-left: 3px solid;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            position: relative;
+            transition: all 0.2s;
+            overflow: hidden;
+        }
+        
+        .currency-card:hover {
+            background: #353535;
+            border-left-width: 4px;
+        }
+        
+        .currency-card:nth-child(9n+1) { border-left-color: #FF5F56; }
+        .currency-card:nth-child(9n+2) { border-left-color: #FF9500; }
+        .currency-card:nth-child(9n+3) { border-left-color: #FFCC00; }
+        .currency-card:nth-child(9n+4) { border-left-color: #27C93F; }
+        .currency-card:nth-child(9n+5) { border-left-color: #00D4FF; }
+        .currency-card:nth-child(9n+6) { border-left-color: #5856D6; }
+        .currency-card:nth-child(9n+7) { border-left-color: #FF2D55; }
+        .currency-card:nth-child(9n+8) { border-left-color: #FF9500; }
+        .currency-card:nth-child(9n+9) { border-left-color: #30D158; }
+        
+        .delete-btn {
+            position: absolute;
+            left: -10px;
+            width: 20px;
+            height: 20px;
+            background: #FF5F56;
+            border-radius: 50%;
+            border: none;
+            color: #1E1E1E;
+            font-size: 14px;
+            line-height: 20px;
+            text-align: center;
+            cursor: pointer;
+            display: none;
+            font-weight: 700;
+        }
+        
+        .currency-card.editing .delete-btn {
+            display: block;
+        }
+        
+        .currency-card.editing {
+            margin-left: 24px;
+        }
+        
+        .flag-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 12px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 2px solid #3D3D3D;
+        }
+        
+        .flag-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .currency-info {
+            flex: 1;
+            min-width: 0;
+            margin-right: 12px;
+        }
+        
+        .currency-code {
+            font-size: 16px;
+            font-weight: 600;
+            color: #00FF00;
+            margin-bottom: 2px;
+        }
+        
+        .currency-name {
+            font-size: 10px;
+            color: #808080;
+            overflow: visible;
+            white-space: normal;
+            word-wrap: break-word;
+            line-height: 1.2;
+        }
+        
+        .currency-value {
+            text-align: right;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: center;
+            min-width: 0;
+            max-width: 50%;
+        }
+        
+        .amount-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 2px;
+            overflow: hidden;
+        }
+        
+        .amount-input {
+            font-size: 18px;
+            font-weight: 600;
+            text-align: right;
+            border: none;
+            outline: none;
+            background: transparent;
+            color: #FFCC00;
+            width: 100%;
+            padding: 0;
+            line-height: 1.3;
+            word-break: break-all;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        
+        .rate {
+            font-size: 9px;
+            color: #606060;
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+        
+        .api-selector {
+            padding: 8px 10px;
+            background: #2D2D2D;
+            border: 1px solid #00D4FF;
+            border-radius: 4px;
+            font-size: 10px;
+            color: #00D4FF;
+            cursor: pointer;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            transition: all 0.2s;
+            justify-self: end;
+            max-width: 100%;
+        }
+
+        .api-selector:hover {
+            background: #00D4FF;
+            color: #1E1E1E;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #2D2D2D;
+            border: 1px solid #3D3D3D;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 70vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+            color: #00D4FF;
+        }
+
+        .currency-option {
+            padding: 12px;
+            border-bottom: 1px solid #3D3D3D;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .currency-option:hover {
+            background: #353535;
+        }
+
+        .currency-option:last-child {
+            border-bottom: none;
+        }
+
+        .currency-option img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin-right: 12px;
+            border: 1px solid #3D3D3D;
+        }
+
+        .currency-option-code {
+            font-weight: 600;
+            color: #00FF00;
+            margin-bottom: 2px;
+        }
+
+        .currency-option-name {
+            font-size: 10px;
+            color: #808080;
+        }
+
+        .modal-close {
+            margin-top: 16px;
+            padding: 10px;
+            background: transparent;
+            border: 1px solid #00D4FF;
+            color: #00D4FF;
+            border-radius: 4px;
+            width: 100%;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: #00D4FF;
+            color: #1E1E1E;
+        }
+
+        @media (max-width: 600px) {
+            .terminal-window {
+                margin: 10px;
+                border-radius: 6px;
+            }
+            
+            .amount-input {
+                font-size: 16px;
+            }
+
+            .btn {
+                padding: 6px 8px;
+                font-size: 10px;
+            }
+
+            .api-selector {
+                font-size: 9px;
+                padding: 6px 8px;
+            }
+
+            .controls {
+                gap: 6px;
+            }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1E1E1E;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #3D3D3D;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>fx_rate_converter</h1>
-      <div class="update-time" id="updateTime">匯率更新中...</div>
-    </div>
-    <div class="input-section">
-      <div class="input-label">基準金額</div>
-      <input type="number" id="amountInput" class="amount-input" value="100" min="0" step="0.01">
-      <select id="baseCurrencySelect" class="selector"></select>
-    </div>
-    <div class="currency-list" id="currencyList">
-      <div class="loading">載入匯率中...</div>
-    </div>
-  </div>
-  <script>
-    // 主清單固定顯示這9種貨幣
-    const mainCurrencies = [
-      { code:'HKD', ch:'港幣', en:'Hong Kong Dollar', flag:'🇭🇰' },
-      { code:'USD', ch:'美元', en:'US Dollar', flag:'🇺🇸' },
-      { code:'JPY', ch:'日元', en:'Japanese Yen', flag:'🇯🇵' },
-      { code:'CNY', ch:'人民幣', en:'Chinese Yuan', flag:'🇨🇳' },
-      { code:'TWD', ch:'新台幣', en:'New Taiwan Dollar', flag:'🇹🇼' },
-      { code:'EUR', ch:'歐元', en:'Euro', flag:'🇪🇺' },
-      { code:'INR', ch:'印度盧比', en:'Indian Rupee', flag:'🇮🇳' },
-      { code:'TRY', ch:'土耳其里拉', en:'Turkish Lira', flag:'🇹🇷' },
-      { code:'NGN', ch:'奈及利亞奈拉', en:'Nigerian Naira', flag:'🇳🇬' }
-    ];
-
-    // 下拉選單：Google Finance/ISO 4217 所有主流貨幣
-    const allCurrencies = [
-      {code:'AED',en:'United Arab Emirates Dirham'},{code:'AFN',en:'Afghan Afghani'},
-      {code:'ALL',en:'Albanian Lek'},{code:'AMD',en:'Armenian Dram'},
-      {code:'ANG',en:'Netherlands Antillean Guilder'},{code:'ARS',en:'Argentine Peso'},
-      {code:'AUD',en:'Australian Dollar'},{code:'AWG',en:'Aruban Florin'},
-      {code:'AZN',en:'Azerbaijani Manat'},{code:'BAM',en:'Bosnia-Herzegovina Convertible Mark'},
-      {code:'BDT',en:'Bangladeshi Taka'},{code:'BGN',en:'Bulgarian Lev'},
-      {code:'BHD',en:'Bahraini Dinar'},{code:'BND',en:'Brunei Dollar'},
-      {code:'BOB',en:'Bolivian Boliviano'},{code:'BRL',en:'Brazilian Real'},
-      {code:'BSD',en:'Bahamian Dollar'},{code:'BWP',en:'Botswanan Pula'},
-      {code:'BYN',en:'Belarusian Ruble'},{code:'BZD',en:'Belize Dollar'},
-      {code:'CAD',en:'Canadian Dollar'},{code:'CHF',en:'Swiss Franc'},
-      {code:'CLP',en:'Chilean Peso'},{code:'CNY',en:'Chinese Yuan'},
-      {code:'COP',en:'Colombian Peso'},{code:'CRC',en:'Costa Rican Colón'},
-      {code:'CUP',en:'Cuban Peso'},{code:'CZK',en:'Czech Koruna'},
-      {code:'DKK',en:'Danish Krone'},{code:'DOP',en:'Dominican Peso'},
-      {code:'DZD',en:'Algerian Dinar'},{code:'EGP',en:'Egyptian Pound'},
-      {code:'EUR',en:'Euro'},{code:'FJD',en:'Fijian Dollar'},
-      {code:'GBP',en:'British Pound Sterling'},{code:'GEL',en:'Georgian Lari'},
-      {code:'GHS',en:'Ghanaian Cedi'},{code:'HKD',en:'Hong Kong Dollar'},
-      {code:'HNL',en:'Honduran Lempira'},{code:'HRK',en:'Croatian Kuna'},
-      {code:'HUF',en:'Hungarian Forint'},{code:'IDR',en:'Indonesian Rupiah'},
-      {code:'ILS',en:'Israeli New Sheqel'},{code:'INR',en:'Indian Rupee'},
-      {code:'IQD',en:'Iraqi Dinar'},{code:'IRR',en:'Iranian Rial'},
-      {code:'ISK',en:'Icelandic Króna'},{code:'JMD',en:'Jamaican Dollar'},
-      {code:'JOD',en:'Jordanian Dinar'},{code:'JPY',en:'Japanese Yen'},
-      {code:'KES',en:'Kenyan Shilling'},{code:'KGS',en:'Kyrgystani Som'},
-      {code:'KRW',en:'South Korean Won'},{code:'KWD',en:'Kuwaiti Dinar'},
-      {code:'KYD',en:'Cayman Islands Dollar'},{code:'KZT',en:'Kazakhstani Tenge'},
-      {code:'LAK',en:'Laotian Kip'},{code:'LBP',en:'Lebanese Pound'},
-      {code:'LKR',en:'Sri Lankan Rupee'},{code:'MAD',en:'Moroccan Dirham'},
-      {code:'MDL',en:'Moldovan Leu'},{code:'MKD',en:'Macedonian Denar'},
-      {code:'MMK',en:'Myanma Kyat'},{code:'MOP',en:'Macanese Pataca'},
-      {code:'MUR',en:'Mauritian Rupee'},{code:'MVR',en:'Maldivian Rufiyaa'},
-      {code:'MXN',en:'Mexican Peso'},{code:'MYR',en:'Malaysian Ringgit'},
-      {code:'NAD',en:'Namibian Dollar'},{code:'NGN',en:'Nigerian Naira'},
-      {code:'NIO',en:'Nicaraguan Córdoba'},{code:'NOK',en:'Norwegian Krone'},
-      {code:'NPR',en:'Nepalese Rupee'},{code:'NZD',en:'New Zealand Dollar'},
-      {code:'OMR',en:'Omani Rial'},{code:'PAB',en:'Panamanian Balboa'},
-      {code:'PEN',en:'Peruvian Nuevo Sol'},{code:'PHP',en:'Philippine Peso'},
-      {code:'PKR',en:'Pakistani Rupee'},{code:'PLN',en:'Polish Zloty'},
-      {code:'PYG',en:'Paraguayan Guarani'},{code:'QAR',en:'Qatari Rial'},
-      {code:'RON',en:'Romanian Leu'},{code:'RSD',en:'Serbian Dinar'},
-      {code:'RUB',en:'Russian Ruble'},{code:'SAR',en:'Saudi Riyal'},
-      {code:'SCR',en:'Seychellois Rupee'},{code:'SEK',en:'Swedish Krona'},
-      {code:'SGD',en:'Singapore Dollar'},{code:'THB',en:'Thai Baht'},
-      {code:'TND',en:'Tunisian Dinar'},{code:'TRY',en:'Turkish Lira'},
-      {code:'TTD',en:'Trinidad and Tobago Dollar'},{code:'TWD',en:'New Taiwan Dollar'},
-      {code:'TZS',en:'Tanzanian Shilling'},{code:'UAH',en:'Ukrainian Hryvnia'},
-      {code:'UGX',en:'Ugandan Shilling'},{code:'USD',en:'US Dollar'},
-      {code:'UYU',en:'Uruguayan Peso'},{code:'UZS',en:'Uzbekistan Som'},
-      {code:'VES',en:'Venezuelan Bolívar'},{code:'VND',en:'Vietnamese Dong'},
-      {code:'XCD',en:'East Caribbean Dollar'},{code:'XOF',en:'CFA Franc BCEAO'},
-      {code:'XPF',en:'CFP Franc'},{code:'YER',en:'Yemeni Rial'},
-      {code:'ZAR',en:'South African Rand'}
-    ];
-
-    let rates = {}, baseCurrency = 'HKD';
-    const amtInput = document.getElementById('amountInput');
-    const baseSelect = document.getElementById('baseCurrencySelect');
-    const listDiv = document.getElementById('currencyList');
-    const upd = document.getElementById('updateTime');
-
-    function initSelect() {
-      baseSelect.innerHTML = '';
-      allCurrencies.forEach(c => {
-        const o = document.createElement('option');
-        o.value = c.code;
-        o.textContent = `${c.code} - ${c.en}`;
-        if (c.code === baseCurrency) o.selected = true;
-        baseSelect.appendChild(o);
-      });
-    }
-
-    async function fetchRates() {
-      try {
-        upd.textContent = '匯率更新中...';
-        const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${baseCurrency}`);
-        const data = await res.json();
-        rates = data.rates; 
-        rates[baseCurrency] = 1;
-        const now = new Date().toLocaleString('zh-HK', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
-        upd.textContent = `匯率更新: ${now}`;
-        renderList();
-      } catch {
-        listDiv.innerHTML = '<div class="error">無法載入匯率</div>';
-      }
-    }
-
-    function renderList() {
-      const amt = parseFloat(amtInput.value) || 0;
-      let html = '';
-      mainCurrencies.forEach(c => {
-        const rt = rates[c.code] || 0;
-        const val = c.code === baseCurrency ? amt.toFixed(2) : (amt * rt).toFixed(2);
-        html += `
-          <div class="currency-item">
-            <div class="flag">${c.flag}</div>
-            <div class="currency-info">
-              <div class="currency-code">${c.code} ${c.ch}</div>
-              <div class="currency-en">${c.en}</div>
+    <div class="terminal-window">
+        <div class="terminal-header">
+            <div class="terminal-buttons">
+                <div class="terminal-btn btn-red"></div>
+                <div class="terminal-btn btn-yellow"></div>
+                <div class="terminal-btn btn-green"></div>
             </div>
-            <div class="currency-value">${val}</div>
-          </div>`;
-      });
-      listDiv.innerHTML = html;
-    }
+            <div class="terminal-title"> Currency Converter</div>
+        </div>
+                <div class="update-time" id="update-time">Loading exchange rates...</div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn btn-edit" id="edit-btn">Edit</button>
+                <button class="btn btn-add" id="add-btn">+ Add Currency</button>
+                <select class="api-selector" id="api-selector">
+                    <option value="exchangeratefree">ExchangeRate-API (Free)</option>
+                    <option value="fxratesapi">FXRatesAPI</option>
+                    <option value="exchangerate">ExchangeRate-API</option>
+                    <option value="openexchange">Open Exchange Rates</option>
+                </select>
+            </div>
 
-    amtInput.addEventListener('input', renderList);
-    baseSelect.addEventListener('change', e => {
-      baseCurrency = e.target.value;
-      fetchRates();
-    });
+            <div id="currency-list"></div>
+        </div>
+    </div>
 
-    initSelect();
-    fetchRates();
-    setInterval(fetchRates, 300000);
-  </script>
+    <div class="modal" id="add-modal">
+        <div class="modal-content">
+            <div class="modal-title">// Add Currency</div>
+            <div id="currency-options"></div>
+            <button class="modal-close" id="modal-close">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        const API_CONFIGS = {
+            fxratesapi: {
+                name: 'FXRatesAPI',
+                key: 'fxr_live_38ad3c55b228cc844e71347bdb45cb3c63df',
+                buildUrl: (key, codes) => `https://api.fxratesapi.com/latest?api_key=${key}&base=USD&currencies=${codes.join(',')}`,
+                parseResponse: (data) => ({ success: data.success, rates: data.rates, timestamp: data.timestamp })
+            },
+            exchangeratefree: {
+                name: 'ExchangeRate-API (Free)',
+                key: '',
+                buildUrl: (key, codes) => `https://api.exchangerate-api.com/v4/latest/USD`,
+                parseResponse: (data) => ({ success: true, rates: data.rates, timestamp: data.time_last_updated })
+            },
+            exchangerate: {
+                name: 'ExchangeRate-API',
+                key: '0d5edd3dbe453790b0bcc4d6',
+                buildUrl: (key, codes) => `https://v6.exchangerate-api.com/v6/${key}/latest/USD`,
+                parseResponse: (data) => ({ success: data.result === 'success', rates: data.conversion_rates, timestamp: data.time_last_update_unix })
+            },
+            openexchange: {
+                name: 'Open Exchange Rates',
+                key: '219fb31cd84b49acb19edb3cb5e7cdfd',
+                buildUrl: (key, codes) => `https://openexchangerates.org/api/latest.json?app_id=${key}`,
+                parseResponse: (data) => ({ success: true, rates: data.rates, timestamp: data.timestamp })
+            }
+        };
+
+        const allCurrencyInfo = {
+            HKD: { name: 'Hong Kong Dollar', code: 'hk', symbol: 'HK$' },
+            USD: { name: 'United States Dollar', code: 'us', symbol: '$' },
+            JPY: { name: 'Japanese Yen', code: 'jp', symbol: '¥' },
+            INR: { name: 'Indian Rupee', code: 'in', symbol: '₹' },
+            TRY: { name: 'Turkish Lira', code: 'tr', symbol: '₺' },
+            CNY: { name: 'Chinese Yuan', code: 'cn', symbol: '¥' },
+            TWD: { name: 'New Taiwan Dollar', code: 'tw', symbol: 'NT$' },
+            NGN: { name: 'Nigerian Naira', code: 'ng', symbol: '₦' },
+            EUR: { name: 'Euro', code: 'eu', symbol: '€' },
+            GBP: { name: 'British Pound', code: 'gb', symbol: '£' },
+            AUD: { name: 'Australian Dollar', code: 'au', symbol: 'A$' },
+            CAD: { name: 'Canadian Dollar', code: 'ca', symbol: 'C$' },
+            CHF: { name: 'Swiss Franc', code: 'ch', symbol: 'CHF' },
+            SGD: { name: 'Singapore Dollar', code: 'sg', symbol: 'S$' },
+            KRW: { name: 'South Korean Won', code: 'kr', symbol: '₩' },
+            SEK: { name: 'Swedish Krona', code: 'se', symbol: 'kr' },
+            NZD: { name: 'New Zealand Dollar', code: 'nz', symbol: 'NZ$' },
+            MXN: { name: 'Mexican Peso', code: 'mx', symbol: 'MX$' },
+            ZAR: { name: 'South African Rand', code: 'za', symbol: 'R' },
+            BRL: { name: 'Brazilian Real', code: 'br', symbol: 'R$' },
+            THB: { name: 'Thai Baht', code: 'th', symbol: '฿' },
+            PHP: { name: 'Philippine Peso', code: 'ph', symbol: '₱' },
+            VND: { name: 'Vietnamese Dong', code: 'vn', symbol: '₫' },
+            IDR: { name: 'Indonesian Rupiah', code: 'id', symbol: 'Rp' },
+            MYR: { name: 'Malaysian Ringgit', code: 'my', symbol: 'RM' },
+            RUB: { name: 'Russian Ruble', code: 'ru', symbol: '₽' },
+            NOK: { name: 'Norwegian Krone', code: 'no', symbol: 'kr' }
+        };
+
+        const defaultCurrencies = ['HKD', 'USD', 'JPY', 'INR', 'TRY', 'CNY', 'TWD', 'NGN', 'EUR'];
+        let displayedCurrencies = [...defaultCurrencies];
+        let currentRates = null;
+        let ratesVsHKD = null;
+        let isUpdating = false;
+        let isEditMode = false;
+
+        async function fetchRates(apiType) {
+            const config = API_CONFIGS[apiType];
+            const apiUrl = config.buildUrl(config.key, Object.keys(allCurrencyInfo));
+
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                const parsed = config.parseResponse(data);
+                
+                const updateTime = new Date(parsed.timestamp * 1000);
+                document.getElementById('update-time').textContent = 
+                    `[${config.name}] Last updated: ${updateTime.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}`;
+                
+                currentRates = parsed.rates;
+                const hkdPerUsd = currentRates['HKD'];
+                ratesVsHKD = {};
+                for (const code in currentRates) {
+                    ratesVsHKD[code] = currentRates[code] / hkdPerUsd;
+                }
+                ratesVsHKD['HKD'] = 1;
+                
+                return ratesVsHKD;
+            } catch (error) {
+                console.error('Error fetching rates:', error);
+                document.getElementById('update-time').textContent = '[ERROR] Failed to load exchange rates';
+                return null;
+            }
+        }
+
+        function formatNumberWithCommas(num, decimals = 2) {
+            const parts = num.toFixed(decimals).split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            return parts.join('.');
+        }
+
+        function updateAllAmounts(changedCode, changedAmount) {
+            if (isUpdating || !ratesVsHKD) return;
+            isUpdating = true;
+
+            const changedRate = ratesVsHKD[changedCode];
+            const baseHKD = changedAmount / changedRate;
+
+            displayedCurrencies.forEach(code => {
+                if (code === changedCode) return;
+                
+                const input = document.getElementById(`input-${code}`);
+                if (input) {
+                    const rate = ratesVsHKD[code];
+                    const amount = baseHKD * rate;
+                    const info = allCurrencyInfo[code];
+                    input.value = `${info.symbol} ${formatNumberWithCommas(amount)}`;
+                }
+            });
+
+            isUpdating = false;
+        }
+
+        function renderCurrencies() {
+            const listElement = document.getElementById('currency-list');
+            listElement.innerHTML = '';
+
+            displayedCurrencies.forEach((code, index) => {
+                const info = allCurrencyInfo[code];
+                if (!info || !ratesVsHKD[code]) return;
+
+                const rate = ratesVsHKD[code];
+                const defaultAmount = 1000 * rate;
+                const isFixed = defaultCurrencies.includes(code);
+                
+                const card = document.createElement('div');
+                card.className = 'currency-card';
+                card.dataset.code = code;
+                if (isEditMode) card.classList.add('editing');
+                
+                const flagUrl = `https://flagcdn.com/w160/${info.code}.png`;
+                const rateDisplay = code === 'HKD' ? '' : `1 HKD = ${formatNumberWithCommas(rate, 4)} ${code}`;
+                
+                card.innerHTML = `
+                    ${!isFixed ? '<button class="delete-btn" data-code="' + code + '">×</button>' : ''}
+                    <div class="flag-icon">
+                        <img src="${flagUrl}" alt="${code}" onerror="this.style.display='none'" />
+                    </div>
+                    <div class="currency-info">
+                        <div class="currency-code">${code}</div>
+                        <div class="currency-name">${info.name}</div>
+                    </div>
+                    <div class="currency-value">
+                        <div class="amount-wrapper">
+                            <input type="text" 
+                                   id="input-${code}" 
+                                   class="amount-input" 
+                                   value="${info.symbol} ${formatNumberWithCommas(defaultAmount)}" 
+                                   data-code="${code}" 
+                                   data-symbol="${info.symbol}" />
+                        </div>
+                        <div class="rate">${rateDisplay}</div>
+                    </div>
+                `;
+                
+                listElement.appendChild(card);
+
+                const deleteBtn = card.querySelector('.delete-btn');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const codeToDelete = this.dataset.code;
+                        displayedCurrencies = displayedCurrencies.filter(c => c !== codeToDelete);
+                        renderCurrencies();
+                    });
+                }
+
+                const input = document.getElementById(`input-${code}`);
+                
+                input.addEventListener('focus', function() {
+                    const symbol = this.dataset.symbol;
+                    const value = this.value.replace(symbol, '').replace(/,/g, '').trim();
+                    this.value = value;
+                });
+
+                input.addEventListener('blur', function() {
+                    const symbol = this.dataset.symbol;
+                    let value = parseFloat(this.value.replace(/,/g, ''));
+                    if (isNaN(value)) value = 0;
+                    this.value = `${symbol} ${formatNumberWithCommas(value)}`;
+                });
+
+                input.addEventListener('input', function() {
+                    const code = this.dataset.code;
+                    const value = parseFloat(this.value.replace(/[^0-9.-]/g, ''));
+                    
+                    if (!isNaN(value) && value >= 0) {
+                        updateAllAmounts(code, value);
+                    }
+                });
+            });
+        }
+
+        function showAddModal() {
+            const modal = document.getElementById('add-modal');
+            const optionsContainer = document.getElementById('currency-options');
+            optionsContainer.innerHTML = '';
+
+            Object.keys(allCurrencyInfo).forEach(code => {
+                if (!displayedCurrencies.includes(code) && ratesVsHKD[code]) {
+                    const info = allCurrencyInfo[code];
+                    const option = document.createElement('div');
+                    option.className = 'currency-option';
+                    option.innerHTML = `
+                        <img src="https://flagcdn.com/w80/${info.code}.png" alt="${code}" />
+                        <div>
+                            <div class="currency-option-code">${code}</div>
+                            <div class="currency-option-name">${info.name}</div>
+                        </div>
+                    `;
+                    option.addEventListener('click', () => {
+                        displayedCurrencies.push(code);
+                        modal.classList.remove('active');
+                        renderCurrencies();
+                    });
+                    optionsContainer.appendChild(option);
+                }
+            });
+
+            modal.classList.add('active');
+        }
+
+        async function initialize() {
+            const apiType = document.getElementById('api-selector').value;
+            const rates = await fetchRates(apiType);
+            if (rates) {
+                renderCurrencies();
+            }
+        }
+
+        document.getElementById('edit-btn').addEventListener('click', () => {
+            isEditMode = !isEditMode;
+            const btn = document.getElementById('edit-btn');
+            btn.textContent = isEditMode ? 'Done' : 'Edit';
+            btn.classList.toggle('editing');
+            renderCurrencies();
+        });
+
+        document.getElementById('add-btn').addEventListener('click', showAddModal);
+        document.getElementById('modal-close').addEventListener('click', () => {
+            document.getElementById('add-modal').classList.remove('active');
+        });
+
+        document.getElementById('api-selector').addEventListener('change', initialize);
+
+        initialize();
+    </script>
 </body>
 </html>
