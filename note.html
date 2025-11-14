@@ -538,11 +538,11 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Telegram Bot Token</label>
-                    <input type="text" class="form-input" id="tgToken" placeholder="Enter bot token" value="7973350853:AAG9O-4WEvDy2792Dux8DZqPvDGr3CapmxE" />
+                    <input type="text" class="form-input" id="tgToken" placeholder="Enter bot token" value="" />
                 </div>
                 <div class="form-group">
                     <label class="form-label">Telegram Chat ID</label>
-                    <input type="text" class="form-input" id="tgChatId" placeholder="Enter chat ID" value="-1003243815547" />
+                    <input type="text" class="form-input" id="tgChatId" placeholder="Enter chat ID" value="" />
                 </div>
             </div>
             <div class="modal-footer">
@@ -560,8 +560,8 @@
         let config = {
             apiKey: '',
             binId: '',
-            tgToken: '7973350853:AAG9O-4WEvDy2792Dux8DZqPvDGr3CapmxE',
-            tgChatId: '-1003243815547',
+            tgToken: '',
+            tgChatId: '',
         };
 
         window.onload = function () {
@@ -577,8 +577,8 @@
                 config = JSON.parse(saved);
                 document.getElementById('apiKey').value = config.apiKey || '';
                 document.getElementById('binId').value = config.binId || '';
-                document.getElementById('tgToken').value = config.tgToken || '7973350853:AAG9O-4WEvDy2792Dux8DZqPvDGr3CapmxE';
-                document.getElementById('tgChatId').value = config.tgChatId || '-1003243815547';
+                document.getElementById('tgToken').value = config.tgToken || '';
+                document.getElementById('tgChatId').value = config.tgChatId || '';
             }
         }
 
