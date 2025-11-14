@@ -481,8 +481,8 @@
                     <span class="header-title">Cloud Notes</span>
                 </div>
                 <div class="header-right">
-                    <button class="header-btn" onclick="openSettings()">⚙️ Settings</button>
-                    <button class="header-btn" onclick="syncNow()">🔄 Sync</button>
+                    <button type="button" class="header-btn" onclick="openSettings()">⚙️ Settings</button>
+                    <button type="button" class="header-btn" onclick="syncNow()">🔄 Sync</button>
                 </div>
             </div>
             <div class="header-content">
@@ -497,7 +497,7 @@
 
         <div class="notes-container" id="notesContainer"></div>
 
-        <button class="fab" onclick="openAddNoteModal()" title="Add Note">+</button>
+        <button type="button" class="fab" onclick="openAddNoteModal()" title="Add Note">+</button>
     </div>
 
     <!-- Add/Edit Note Modal -->
@@ -505,7 +505,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title" id="modalTitle">Add Note</h2>
-                <button class="close-btn" onclick="closeNoteModal()">×</button>
+                <button type="button" class="close-btn" onclick="closeNoteModal()">×</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -514,8 +514,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeNoteModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="saveNote()">Save</button>
+                <button type="button" class="btn btn-secondary" onclick="closeNoteModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveNote()">Save</button>
             </div>
         </div>
     </div>
@@ -525,7 +525,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">Settings</h2>
-                <button class="close-btn" onclick="closeSettingsModal()">×</button>
+                <button type="button" class="close-btn" onclick="closeSettingsModal()">×</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -546,8 +546,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="pullFromCloud()">Pull from Cloud</button>
-                <button class="btn btn-primary" onclick="saveSettings()">Save & Push</button>
+                <button type="button" class="btn btn-secondary" onclick="pullFromCloud()">Pull from Cloud</button>
+                <button type="button" class="btn btn-primary" onclick="saveSettings()">Save & Push</button>
             </div>
         </div>
     </div>
@@ -621,11 +621,11 @@
                     <div class="note-header">
                         <div class="note-date">${note.date}</div>
                         <div class="note-actions">
-                            <button class="icon-btn" onclick="uploadFileToNote(${index})" title="Upload to Telegram">📎</button>
+                            <button type="button" class="icon-btn" onclick="uploadFileToNote(${index})" title="Upload to Telegram">📎</button>
                             <input type="file" id="fileInput-${index}" class="file-input-hidden" onchange="handleFileUpload(${index})" />
-                            <button class="icon-btn" onclick="copyNote(${index})" title="Copy">📋</button>
-                            <button class="icon-btn" onclick="editNote(${index})" title="Edit">✏️</button>
-                            <button class="icon-btn" onclick="deleteNote(${index})" title="Delete">🗑️</button>
+                            <button type="button" class="icon-btn" onclick="copyNote(${index})" title="Copy">📋</button>
+                            <button type="button" class="icon-btn" onclick="editNote(${index})" title="Edit">✏️</button>
+                            <button type="button" class="icon-btn" onclick="deleteNote(${index})" title="Delete">🗑️</button>
                         </div>
                     </div>
                     <div class="note-content">${escapeHtml(note.content)}</div>
@@ -812,7 +812,8 @@
 
             try {
                 const response = await fetch(
-                    `https://api.jsonbin.io/v3/b/${config.binId}`,
+                    `https://api.jsonbin.io/v3/b/${
+        headers: {"Content-Type": "application/json", "X-Master-Key": config.jsonbinApiKey},config.binId}`,
                     {
                         method: 'PUT',
                         headers: {
@@ -856,7 +857,8 @@
 
             try {
                 const response = await fetch(
-                    `https://api.jsonbin.io/v3/b/${config.binId}/latest`,
+                    `https://api.jsonbin.io/v3/b/${
+        headers: {"Content-Type": "application/json", "X-Master-Key": config.jsonbinApiKey},config.binId}/latest`,
                     {
                         headers: {
                             'X-Master-Key': config.apiKey,
