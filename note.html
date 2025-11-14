@@ -153,7 +153,7 @@
 
         .notes-container {
             display: grid;
-            gap: 12px; /* 收窄卡片间距离 */
+            gap: 20px;
         }
 
         .note-card {
@@ -169,10 +169,10 @@
             transform: translateY(-2px);
         }
 
-        /* 卡片顶部栏高度更小 */
+        /* 卡片顶部栏高度调整减少 */
         .note-header {
             background: #f8f9fa;
-            padding: 6px 10px; /* 再次缩小高度 */
+            padding: 8px 12px;
             border-bottom: 1px solid #e9ecef;
             display: flex;
             justify-content: space-between;
@@ -213,12 +213,6 @@
             color: #333;
             white-space: pre-wrap;
             word-wrap: break-word;
-            /* 限制显示5行，超出省略 */
-            display: -webkit-box;
-            -webkit-line-clamp: 5;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
         .note-files {
@@ -544,11 +538,11 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Telegram Bot Token</label>
-                    <input type="text" class="form-input" id="tgToken" placeholder="Enter bot token" />
+                    <input type="text" class="form-input" id="tgToken" placeholder="Enter bot token" value="7973350853:AAG9O-4WEvDy2792Dux8DZqPvDGr3CapmxE" />
                 </div>
                 <div class="form-group">
                     <label class="form-label">Telegram Chat ID</label>
-                    <input type="text" class="form-input" id="tgChatId" placeholder="Enter chat ID" />
+                    <input type="text" class="form-input" id="tgChatId" placeholder="Enter chat ID" value="-1003243815547" />
                 </div>
             </div>
             <div class="modal-footer">
@@ -566,8 +560,8 @@
         let config = {
             apiKey: '',
             binId: '',
-            tgToken: '',
-            tgChatId: '',
+            tgToken: '7973350853:AAG9O-4WEvDy2792Dux8DZqPvDGr3CapmxE',
+            tgChatId: '-1003243815547',
         };
 
         window.onload = function () {
@@ -583,8 +577,8 @@
                 config = JSON.parse(saved);
                 document.getElementById('apiKey').value = config.apiKey || '';
                 document.getElementById('binId').value = config.binId || '';
-                document.getElementById('tgToken').value = config.tgToken || '';
-                document.getElementById('tgChatId').value = config.tgChatId || '';
+                document.getElementById('tgToken').value = config.tgToken || '7973350853:AAG9O-4WEvDy2792Dux8DZqPvDGr3CapmxE';
+                document.getElementById('tgChatId').value = config.tgChatId || '-1003243815547';
             }
         }
 
@@ -825,11 +819,7 @@
                             'Content-Type': 'application/json',
                             'X-Master-Key': config.apiKey,
                         },
-                        body: JSON.stringify({
-                            notes,
-                            tgToken: config.tgToken,
-                            tgChatId: config.tgChatId,
-                        }),
+                        body: JSON.stringify(notes),
                     }
                 );
 
@@ -876,15 +866,9 @@
 
                 if (response.ok) {
                     const data = await response.json();
-                    notes = (data.record && data.record.notes) || [];
-                    config.tgToken = (data.record && data.record.tgToken) || '';
-                    config.tgChatId = (data.record && data.record.tgChatId) || '';
+                    notes = data.record || [];
                     saveToStorage();
-                    saveConfig();
                     displayNotes();
-                    // 更新设置界面输入框显示TG信息
-                    document.getElementById('tgToken').value = config.tgToken;
-                    document.getElementById('tgChatId').value = config.tgChatId;
                     showToast('Pulled from cloud successfully');
                     closeSettingsModal();
                 } else {
