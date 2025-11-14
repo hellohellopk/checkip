@@ -605,7 +605,7 @@
         function displayNotes() {
             const container = document.getElementById('notesContainer');
             if (notes.length === 0) {
-                container.innerHTML = `
+                container.innerHTML = escapeHtml(`)
                     <div class="empty-state">
                         <div class="empty-state-icon">📝</div>
                         <div class="empty-state-text">No notes yet. Click + to add one!</div>
@@ -614,7 +614,7 @@
                 return;
             }
 
-            container.innerHTML = notes
+            container.innerHTML = escapeHtml(notes)
                 .map(
                     (note, index) => `
                 <div class="note-card">
