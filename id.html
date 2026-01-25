@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ID Card Tool with Watermark</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Cropper.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f3f4f6;
+        }
+        /* Hide file input */
+        input[type="file"] {
+            display: none;
+        }
+        .preview-box {
+            width: 180px; 
+            height: 108px;
+            border: 2px dashed #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            overflow: hidden;
+            position: relative;
+        }
+        .preview-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .step-card {
+            transition: all 0.3s ease;
+        }
+        .step-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        /* Checkbox custom style */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #68D391;
+        }
+    </style>
+</head>
+<body class="min-h-screen py-8 px-4">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                <i class="fa-solid fa-id-card text-blue-600 mr-2"></i>ID Card PDF Tool
+            </h1>
+            <p class="text-gray-600">Upload, Crop, Watermark, and Generate A4 PDF.</p>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <!-- Step 1: Front Side -->
+            <div class="bg-white rounded-xl shadow-md p-6 step-card border-l-4 border-blue-500">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">1. Front Side</h2>
+                    <span id="status-front" class="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded-full">Pending</span>
+                </div>
+                
+                <div class="space-y-4">
+                    <!-- Editor Area -->
+                    <div id="editor-container-front" class="hidden">
+                        <div class="w-full h-64 bg-gray-900 rounded-lg overflow-hidden mb-3 relative">
+                            <img id="image-front" src="" alt="Front" class="max-w-full block">
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="cropImage('front')" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-medium transition">
+                                <i class="fa-solid fa-check mr-1"></i> Confirm
+                            </button>
+                            <button onclick="cancelCrop('front')" class="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Upload & Result Area -->
+                    <div id="upload-area-front" class="flex flex-col items-center justify-center space-y-4">
+                        <div id="result-front" class="preview-box rounded-lg shadow-inner">
+                            <span class="text-gray-400 text-sm">Preview</span>
+                        </div>
+                        
+                        <label class="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold py-2 px-6 rounded-lg border border-blue-200 transition flex items-center gap-2">
+                            <i class="fa-solid fa-upload"></i> Upload Front
+                            <input type="file" accept="image/*" onchange="handleFileSelect(event, 'front')">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Back Side -->
+            <div class="bg-white rounded-xl shadow-md p-6 step-card border-l-4 border-indigo-500">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">2. Back Side</h2>
+                    <span id="status-back" class="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded-full">Pending</span>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Editor Area -->
+                    <div id="editor-container-back" class="hidden">
+                        <div class="w-full h-64 bg-gray-900 rounded-lg overflow-hidden mb-3 relative">
+                            <img id="image-back" src="" alt="Back" class="max-w-full block">
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="cropImage('back')" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-medium transition">
+                                <i class="fa-solid fa-check mr-1"></i> Confirm
+                            </button>
+                            <button onclick="cancelCrop('back')" class="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Upload & Result Area -->
+                    <div id="upload-area-back" class="flex flex-col items-center justify-center space-y-4">
+                        <div id="result-back" class="preview-box rounded-lg shadow-inner">
+                            <span class="text-gray-400 text-sm">Preview</span>
+                        </div>
+                        
+                        <label class="cursor-pointer bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-semibold py-2 px-6 rounded-lg border border-indigo-200 transition flex items-center gap-2">
+                            <i class="fa-solid fa-upload"></i> Upload Back
+                            <input type="file" accept="image/*" onchange="handleFileSelect(event, 'back')">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Step 3: Settings & Generate -->
+        <div class="mt-8 bg-gray-800 rounded-xl shadow-lg p-8 text-white">
+            <h2 class="text-2xl font-bold mb-6 text-center">3. Generate PDF</h2>
+            
+            <div class="flex flex-col items-center space-y-6">
+                
+                <!-- Watermark Toggle -->
+                <div class="flex items-center space-x-3 bg-gray-700 px-6 py-3 rounded-lg border border-gray-600">
+                    <input type="checkbox" id="watermark-check" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-600 ring-offset-gray-800 focus:ring-2 bg-gray-700 border-gray-600">
+                    <label for="watermark-check" class="text-lg font-medium cursor-pointer select-none">
+                        Add 'COPY' Watermark
+                    </label>
+                </div>
+
+                <p class="text-gray-300 text-center max-w-2xl">
+                    Generate an A4 PDF with the images at exact size (90mm x 54mm).<br>
+                    <span class="text-sm text-gray-400">(Original image quality is preserved)</span>
+                </p>
+
+                <button id="download-btn" onclick="generatePDF()" disabled 
+                    class="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 px-10 rounded-full shadow-lg transition transform hover:scale-105 flex items-center justify-center gap-3 text-lg min-w-[280px]">
+                    <span id="btn-text">Download PDF</span>
+                    <i id="btn-icon" class="fa-solid fa-file-pdf text-2xl"></i>
+                    <!-- Loading Spinner (Hidden by default) -->
+                    <i id="btn-spinner" class="fa-solid fa-circle-notch fa-spin hidden"></i>
+                </button>
+                
+                <p id="error-msg" class="text-yellow-400 hidden"><i class="fa-solid fa-circle-exclamation mr-1"></i> Please crop at least one image!</p>
+            </div>
+        </div>
+        
+        <div class="mt-8 text-center text-gray-400 text-sm">
+            <p>Privacy: All processing is local.</p>
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        const croppers = { front: null, back: null };
+        const finalImages = { front: null, back: null };
+        
+        const TARGET_WIDTH_MM = 90;
+        const TARGET_HEIGHT_MM = 54;
+        const ASPECT_RATIO = TARGET_WIDTH_MM / TARGET_HEIGHT_MM; 
+
+        function handleFileSelect(event, side) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById(`editor-container-${side}`).classList.remove('hidden');
+                document.getElementById(`upload-area-${side}`).classList.add('hidden');
+                const imageElement = document.getElementById(`image-${side}`);
+                imageElement.src = e.target.result;
+
+                if (croppers[side]) croppers[side].destroy();
+
+                croppers[side] = new Cropper(imageElement, {
+                    aspectRatio: ASPECT_RATIO,
+                    viewMode: 1,
+                    dragMode: 'move',
+                    autoCropArea: 0.8,
+                    restore: false,
+                    guides: true,
+                    center: true,
+                    highlight: false,
+                    cropBoxMovable: true,
+                    cropBoxResizable: true,
+                    toggleDragModeOnDblclick: false,
+                });
+            };
+            reader.readAsDataURL(file);
+            event.target.value = '';
+        }
+
+        function cropImage(side) {
+            if (!croppers[side]) return;
+            const canvas = croppers[side].getCroppedCanvas({
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high',
+            });
+            finalImages[side] = canvas.toDataURL('image/jpeg', 1.0); 
+            
+            const resultBox = document.getElementById(`result-${side}`);
+            resultBox.innerHTML = `<img src="${finalImages[side]}" alt="Cropped ${side}">`;
+
+            const statusBadge = document.getElementById(`status-${side}`);
+            statusBadge.innerText = 'Completed';
+            statusBadge.className = 'text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-bold';
+
+            croppers[side].destroy();
+            croppers[side] = null;
+            document.getElementById(`image-${side}`).src = '';
+            
+            document.getElementById(`editor-container-${side}`).classList.add('hidden');
+            document.getElementById(`upload-area-${side}`).classList.remove('hidden');
+
+            checkReadyState();
+        }
+
+        function cancelCrop(side) {
+            if (croppers[side]) {
+                croppers[side].destroy();
+                croppers[side] = null;
+            }
+            document.getElementById(`image-${side}`).src = '';
+            document.getElementById(`editor-container-${side}`).classList.add('hidden');
+            document.getElementById(`upload-area-${side}`).classList.remove('hidden');
+        }
+
+        function checkReadyState() {
+            const btn = document.getElementById('download-btn');
+            const errorMsg = document.getElementById('error-msg');
+            if (finalImages.front || finalImages.back) {
+                btn.disabled = false;
+                errorMsg.classList.add('hidden');
+            } else {
+                btn.disabled = true;
+            }
+        }
+
+        // Apply watermark to image (Returns Promise)
+        function applyWatermark(base64Image) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+
+                    // 1. Draw original image
+                    ctx.drawImage(img, 0, 0);
+
+                    // 2. Setup Watermark
+                    // Scale font based on image width
+                    const fontSize = Math.max(20, canvas.width / 8); 
+                    ctx.font = `bold ${fontSize}px Arial`;
+                    ctx.fillStyle = 'rgba(150, 150, 150, 0.4)'; // Grey with 40% opacity
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    // 3. Draw tiled "COPY" text rotated 45 degrees
+                    const text = "COPY";
+                    const stepX = canvas.width / 2; // Distance between texts
+                    const stepY = canvas.height / 2;
+                    
+                    ctx.save();
+                    // Rotate entire context for simplicity in loop
+                    // But rotating context makes grid calculation hard.
+                    // Better: Translate to point, rotate, draw, restore.
+                    
+                    for (let y = 0; y < canvas.height; y += stepY) {
+                        for (let x = 0; x < canvas.width; x += stepX) {
+                             ctx.save();
+                             // Offset slightly for brick pattern
+                             const offsetX = (y / stepY) % 2 === 0 ? 0 : stepX / 2;
+                             
+                             ctx.translate(x + offsetX, y);
+                             ctx.rotate(-45 * Math.PI / 180);
+                             ctx.fillText(text, 0, 0);
+                             ctx.restore();
+                        }
+                    }
+                    // Draw one big one in center just in case
+                    ctx.save();
+                    ctx.translate(canvas.width/2, canvas.height/2);
+                    ctx.rotate(-45 * Math.PI / 180);
+                    ctx.globalAlpha = 0.2; // Even fainter
+                    ctx.font = `bold ${canvas.width/3}px Arial`;
+                    ctx.fillText(text, 0, 0);
+                    ctx.restore();
+
+                    resolve(canvas.toDataURL('image/jpeg', 0.95));
+                };
+                img.src = base64Image;
+            });
+        }
+
+        async function generatePDF() {
+            if (!finalImages.front && !finalImages.back) {
+                document.getElementById('error-msg').classList.remove('hidden');
+                return;
+            }
+
+            // UI Loading state
+            const btn = document.getElementById('download-btn');
+            const btnText = document.getElementById('btn-text');
+            const btnIcon = document.getElementById('btn-icon');
+            const btnSpinner = document.getElementById('btn-spinner');
+            
+            btn.disabled = true;
+            btnText.innerText = "Processing...";
+            btnIcon.classList.add('hidden');
+            btnSpinner.classList.remove('hidden');
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                
+                const pageWidth = 210;
+                const imgWidth = TARGET_WIDTH_MM; 
+                const imgHeight = TARGET_HEIGHT_MM; 
+                const x = (pageWidth - imgWidth) / 2;
+                const yFront = 50; 
+                const yBack = yFront + imgHeight + 20;
+
+                const useWatermark = document.getElementById('watermark-check').checked;
+
+                doc.setFontSize(10);
+                doc.setTextColor(100);
+
+                if (finalImages.front) {
+                    let imgData = finalImages.front;
+                    if (useWatermark) {
+                        imgData = await applyWatermark(imgData);
+                    }
+                    doc.addImage(imgData, 'JPEG', x, yFront, imgWidth, imgHeight);
+                    doc.text("Front Side", x, yFront - 2);
+                    doc.setDrawColor(200);
+                    doc.setLineWidth(0.1);
+                    doc.rect(x, yFront, imgWidth, imgHeight);
+                }
+
+                if (finalImages.back) {
+                    let imgData = finalImages.back;
+                    if (useWatermark) {
+                        imgData = await applyWatermark(imgData);
+                    }
+                    doc.addImage(imgData, 'JPEG', x, yBack, imgWidth, imgHeight);
+                    doc.text("Back Side", x, yBack - 2);
+                    doc.setDrawColor(200);
+                    doc.setLineWidth(0.1);
+                    doc.rect(x, yBack, imgWidth, imgHeight);
+                }
+
+                doc.save('ID_Card_Copy.pdf');
+
+            } catch (err) {
+                console.error(err);
+                alert("Error generating PDF");
+            } finally {
+                // Reset UI
+                btn.disabled = false;
+                btnText.innerText = "Download PDF";
+                btnIcon.classList.remove('hidden');
+                btnSpinner.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
+
