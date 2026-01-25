@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apple Music HK New Release Bot</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body {
+            background-color: #09090b; /* Zinc 950 */
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .glass-panel {
+            background: rgba(24, 24, 27, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #18181b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3f3f46; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #52525b; 
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- Icons ---
+        const Icons = {
+            Music: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>,
+            Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+            Copy: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>,
+            Link: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
+            Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+            Loader: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>,
+            Alert: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+        };
+
+        const PROXY_URL = "https://round-morning-c112.nippon-eb8.workers.dev/?url=";
+        const TARGET_MAIN_URL = "https://music.apple.com/hk/new";
+
+        const App = () => {
+            const [status, setStatus] = useState('idle'); // idle, scanning_main, scanning_room, completed, error
+            const [logs, setLogs] = useState([]);
+            const [songs, setSongs] = useState([]);
+            const [roomUrl, setRoomUrl] = useState('');
+            const [onlyChinese, setOnlyChinese] = useState(false);
+            const [copyFeedback, setCopyFeedback] = useState(false);
+            const logsEndRef = useRef(null);
+
+            // Auto-scroll logs
+            useEffect(() => {
+                logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, [logs]);
+
+            const addLog = (msg) => setLogs(prev => [...prev, msg]);
+
+            const fetchWithProxy = async (url) => {
+                const response = await fetch(`${PROXY_URL}${encodeURIComponent(url)}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return await response.text();
+            };
+
+            const parseHTML = (htmlString) => {
+                const parser = new DOMParser();
+                return parser.parseFromString(htmlString, 'text/html');
+            };
+
+            // Step 1: Find the "New Songs" Room URL from the main page
+            const findRoomUrl = (doc, html) => {
+                // Priority 1: Look for aria-label="最新歌曲" or "Latest Songs" container
+                const section = Array.from(doc.querySelectorAll('div, section')).find(el => {
+                    const label = el.getAttribute('aria-label') || '';
+                    return label.includes('最新歌曲') || label.includes('Latest Songs');
+                });
+
+                if (section) {
+                    const link = section.querySelector('a[href*="/room/"]');
+                    if (link) return link.href;
+                }
+
+                // Priority 2: Look for Header text -> Parent -> Link
+                const headers = Array.from(doc.querySelectorAll('h2, .header-title'));
+                const targetHeader = headers.find(h => h.innerText.includes('最新歌曲') || h.innerText.includes('Latest Songs'));
+                
+                if (targetHeader) {
+                    // Try going up to a container and finding a link
+                    const container = targetHeader.closest('div[class*="section"]');
+                    if (container) {
+                        const link = container.querySelector('a[href*="/room/"]');
+                        if (link) return link.href;
+                    }
+                }
+
+                // Priority 3: Regex search in raw HTML (most robust against DOM changes)
+                // Pattern: href="/hk/room/6755564403" ... "最新歌曲"
+                // Often these are far apart, so we look for any room link
+                const roomMatches = html.matchAll(/href="(\/hk\/room\/\d+)"/g);
+                for (const match of roomMatches) {
+                    // This is a bit of a guess, but usually the new songs room is one of the first few large numeric IDs
+                    // Or we can just return the first one if we assume layout consistency
+                    // A better regex might check proximity to "最新歌曲" but that's complex in minified HTML
+                    // Let's try to map it to our known structure
+                    return `https://music.apple.com${match[1]}`;
+                }
+
+                return null;
+            };
+
+            // Step 2: Parse songs from the Room Page (JSON preferred)
+            const extractSongsFromRoom = (doc, html) => {
+                let extracted = [];
+
+                // Method A: JSON Data (serialized-server-data)
+                // This is the most reliable method based on your source code analysis
+                const scriptData = doc.getElementById('serialized-server-data');
+                if (scriptData) {
+                    try {
+                        const json = JSON.parse(scriptData.innerText);
+                        // Traverse: data -> sections -> items
+                        // The structure usually is array of objects or single object
+                        const dataObj = Array.isArray(json) ? json[0] : json;
+                        
+                        // Navigate to items
+                        // Usually: dataObj.data.sections[0].items
+                        if (dataObj?.data?.sections) {
+                            dataObj.data.sections.forEach(section => {
+                                // We want the section that is a playlistTrackList
+                                if (section.items && Array.isArray(section.items)) {
+                                    section.items.forEach(item => {
+                                        // Check if it's a song
+                                        if (item.title && item.artistName) {
+                                            extracted.push({
+                                                title: item.title,
+                                                artist: item.artistName,
+                                                // url usually in contentDescriptor.url or playAction
+                                                url: item.contentDescriptor?.url || item.url || ''
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                        if (extracted.length > 0) {
+                            addLog('✅ 成功從 JSON 數據中解析歌曲');
+                            return extracted;
+                        }
+                    } catch (e) {
+                        console.error("JSON parsing error", e);
+                        addLog('⚠️ JSON 解析失敗，切換至 DOM 模式');
+                    }
+                }
+
+                // Method B: DOM Parsing (Fallback)
+                const rows = Array.from(doc.querySelectorAll('div[role="row"], .songs-list-row'));
+                rows.forEach(row => {
+                    const titleEl = row.querySelector('.songs-list-row__song-name, [data-testid="track-title"]');
+                    const artistEl = row.querySelector('.songs-list-row__by-line, [data-testid="track-artist"]');
+                    const linkEl = row.querySelector('a');
+
+                    if (titleEl && artistEl) {
+                        extracted.push({
+                            title: titleEl.innerText.trim(),
+                            artist: artistEl.innerText.trim(),
+                            url: linkEl ? linkEl.href : ''
+                        });
+                    }
+                });
+
+                return extracted;
+            };
+
+            const startScan = async () => {
+                setStatus('scanning_main');
+                setLogs(['🚀 初始化爬蟲...']);
+                setSongs([]);
+                setRoomUrl('');
+
+                try {
+                    // --- Phase 1: Main Page ---
+                    addLog(`📡 連接至: ${TARGET_MAIN_URL}`);
+                    const mainHtml = await fetchWithProxy(TARGET_MAIN_URL);
+                    const mainDoc = parseHTML(mainHtml);
+
+                    addLog('🔍 尋找「最新歌曲」Room ID...');
+                    let targetUrl = findRoomUrl(mainDoc, mainHtml);
+
+                    // Normalize URL
+                    if (targetUrl && !targetUrl.startsWith('http')) {
+                        // Handle relative paths from proxy result
+                        if (targetUrl.startsWith('/')) {
+                            targetUrl = `https://music.apple.com${targetUrl}`;
+                        } else if (targetUrl.startsWith('file://')) {
+                             // DOMParser artifact
+                             const relative = targetUrl.replace('file://', '');
+                             targetUrl = `https://music.apple.com${relative}`;
+                        }
+                    }
+
+                    // Fallback hardcoded logic if automated finding fails (safety net)
+                    // Sometimes finding logic fails but we know it's /hk/new, 
+                    // However, we need the Room ID for the full list.
+                    // If parsing fails, we can stop or try a known ID if you have one.
+                    
+                    if (!targetUrl) {
+                        throw new Error("無法定位最新歌曲列表，請檢查 Apple Music 頁面結構。");
+                    }
+
+                    // Fix for proxy double-encoding issues sometimes
+                    if (targetUrl.includes('workers.dev')) {
+                        const match = targetUrl.match(/url=(.*)/);
+                        if (match) targetUrl = decodeURIComponent(match[1]);
+                    }
+
+                    setRoomUrl(targetUrl);
+                    addLog(`🎯 鎖定目標 Room: ${targetUrl}`);
+                    setStatus('scanning_room');
+
+                    // --- Phase 2: Room Page ---
+                    addLog('📥 正在下載歌曲列表...');
+                    const roomHtml = await fetchWithProxy(targetUrl);
+                    const roomDoc = parseHTML(roomHtml);
+
+                    addLog('🧠 解析歌曲數據...');
+                    let collectedSongs = extractSongsFromRoom(roomDoc, roomHtml);
+
+                    // Fix URLs in collected songs (they might be relative or absolute)
+                    collectedSongs = collectedSongs.map(s => {
+                        let u = s.url;
+                        if (u && !u.startsWith('http')) {
+                            u = `https://music.apple.com${u.startsWith('/') ? '' : '/'}${u}`;
+                        }
+                        return { ...s, url: u };
+                    });
+
+                    // Remove duplicates based on URL
+                    const uniqueSongs = collectedSongs.filter((v,i,a)=>a.findIndex(t=>(t.url===v.url))===i);
+
+                    if (uniqueSongs.length === 0) {
+                        throw new Error("雖然找到了頁面，但無法提取歌曲。可能需要更新解析邏輯。");
+                    }
+
+                    setSongs(uniqueSongs);
+                    addLog(`🎉 完成！共搜集到 ${uniqueSongs.length} 首新歌。`);
+                    setStatus('completed');
+
+                } catch (error) {
+                    console.error(error);
+                    addLog(`❌ 錯誤: ${error.message}`);
+                    setStatus('error');
+                }
+            };
+
+            const isChinese = (text) => /[\u4e00-\u9fa5]/.test(text);
+
+            const displayedSongs = onlyChinese 
+                ? songs.filter(s => isChinese(s.title) || isChinese(s.artist)) 
+                : songs;
+
+            const copyToClipboard = () => {
+                const date = new Date().toLocaleDateString('zh-HK');
+                let text = `📅 ${date} Apple Music HK 新歌速報\nSource: ${roomUrl}\n\n`;
+                displayedSongs.forEach((s, i) => {
+                    text += `${i+1}. ${s.title} - ${s.artist}\n${s.url}\n\n`;
+                });
+                
+                // Use older execCommand for better compatibility in iframes if clipboard API fails
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    setCopyFeedback(true);
+                    setTimeout(() => setCopyFeedback(false), 2000);
+                } catch (err) {
+                    alert("複製失敗，請手動選取複製");
+                }
+                document.body.removeChild(textArea);
+            };
+
+            return (
+                <div className="min-h-screen pb-20 bg-black text-white selection:bg-red-500 selection:text-white">
+                    {/* Top Bar */}
+                    <div className="sticky top-0 z-50 glass-panel border-b border-white/10">
+                        <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-br from-red-500 to-pink-600 p-2 rounded-lg shadow-lg shadow-red-900/20">
+                                    <Icons.Music />
+                                </div>
+                                <div>
+                                    <h1 className="font-bold text-lg leading-tight">AM HK Tracker</h1>
+                                    <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-medium">Daily New Releases</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className={`h-2 w-2 rounded-full ${status === 'scanning_main' || status === 'scanning_room' ? 'bg-yellow-500 animate-pulse' : status === 'completed' ? 'bg-green-500' : 'bg-zinc-600'}`}></span>
+                                <span className="text-xs font-mono text-zinc-500 hidden sm:block">{status === 'idle' ? 'READY' : status.toUpperCase()}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <main className="max-w-3xl mx-auto px-4 mt-6 space-y-6">
+                        
+                        {/* Status Card */}
+                        <div className="bg-zinc-900/50 rounded-2xl border border-zinc-800 overflow-hidden">
+                            <div className="p-6 border-b border-zinc-800 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                <div className="text-center sm:text-left">
+                                    <div className="text-sm text-zinc-400 mb-1">目標來源</div>
+                                    <div className="font-mono text-xs text-red-300 bg-red-950/30 px-2 py-1 rounded border border-red-900/50 truncate max-w-[250px]">
+                                        music.apple.com/hk/new
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={startScan}
+                                    disabled={status.includes('scanning')}
+                                    className={`
+                                        relative group overflow-hidden px-8 py-3 rounded-xl font-bold transition-all w-full sm:w-auto
+                                        ${status.includes('scanning') 
+                                            ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' 
+                                            : 'bg-white text-black hover:scale-105 active:scale-95 shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)]'}
+                                    `}
+                                >
+                                    <div className="flex items-center justify-center gap-2 relative z-10">
+                                        {status.includes('scanning') ? <Icons.Loader /> : <Icons.Search />}
+                                        <span>{status.includes('scanning') ? '掃描中...' : '開始搜集'}</span>
+                                    </div>
+                                </button>
+                            </div>
+                            
+                            {/* Logs Terminal */}
+                            <div className="bg-black p-4 font-mono text-xs h-32 overflow-y-auto border-t border-zinc-800">
+                                {logs.length === 0 && <div className="text-zinc-600 italic">系統準備就緒，等待指令...</div>}
+                                {logs.map((log, i) => (
+                                    <div key={i} className="mb-1.5 flex gap-2">
+                                        <span className="text-zinc-600 select-none">[{new Date().toLocaleTimeString('en-US', {hour12:false})}]</span>
+                                        <span className={log.includes('錯誤') ? 'text-red-400' : log.includes('成功') || log.includes('完成') ? 'text-green-400' : 'text-zinc-300'}>
+                                            {log}
+                                        </span>
+                                    </div>
+                                ))}
+                                <div ref={logsEndRef} />
+                            </div>
+                        </div>
+
+                        {/* Results Toolbar */}
+                        {songs.length > 0 && (
+                            <div className="sticky top-20 z-40 bg-zinc-950/90 backdrop-blur border border-zinc-800 p-2 rounded-xl flex justify-between items-center shadow-2xl">
+                                <label className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-900 cursor-pointer transition-colors select-none">
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${onlyChinese ? 'bg-red-500 border-red-500' : 'border-zinc-600 bg-transparent'}`}>
+                                        {onlyChinese && <Icons.Check className="w-3.5 h-3.5 text-white" />}
+                                    </div>
+                                    <input type="checkbox" className="hidden" checked={onlyChinese} onChange={e => setOnlyChinese(e.target.checked)} />
+                                    <span className="text-sm font-medium">只顯示中文歌</span>
+                                </label>
+
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-zinc-500 mr-2 hidden sm:inline-block">
+                                        顯示 {displayedSongs.length} / {songs.length}
+                                    </span>
+                                    <button 
+                                        onClick={copyToClipboard}
+                                        className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-95"
+                                    >
+                                        {copyFeedback ? <Icons.Check size={16} className="text-green-400"/> : <Icons.Copy size={16}/>}
+                                        {copyFeedback ? '已複製！' : '複製清單'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Song List */}
+                        <div className="space-y-2">
+                            {displayedSongs.map((song, i) => (
+                                <div key={i} className="group bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/50 hover:border-zinc-700 p-3 rounded-xl transition-all flex items-center gap-4">
+                                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-mono text-zinc-500 group-hover:text-white group-hover:bg-red-500/20 group-hover:text-red-400 transition-colors shrink-0">
+                                        {i + 1}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-semibold text-zinc-200 truncate group-hover:text-white">{song.title}</div>
+                                        <div className="text-sm text-zinc-500 truncate group-hover:text-zinc-400">{song.artist}</div>
+                                    </div>
+                                    <a 
+                                        href={song.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="p-2 text-zinc-600 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-all"
+                                        title="在 Apple Music 開啟"
+                                    >
+                                        <Icons.Link />
+                                    </a>
+                                </div>
+                            ))}
+                            
+                            {status === 'completed' && displayedSongs.length === 0 && (
+                                <div className="text-center py-12 text-zinc-500">
+                                    <Icons.Alert className="mx-auto mb-2 opacity-50" />
+                                    <p>沒有符合條件的歌曲</p>
+                                </div>
+                            )}
+                        </div>
+
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
