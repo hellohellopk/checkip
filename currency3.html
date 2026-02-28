@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FX Terminal Pro</title>
+    <title>FX Terminal Pro - Auto Save</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=SF+Mono:wght@400;500;600&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
@@ -103,27 +103,49 @@
             position: relative;
             width: 100%;
             transition: background 0.2s;
+            user-select: none;
+            -webkit-user-select: none;
         }
         
-        .currency-card.editing { padding-left: 54px; }
+        .currency-card.dragging {
+            opacity: 0.4;
+            background: #333;
+        }
 
-        .delete-btn {
+        .currency-card.editing { padding-left: 80px; }
+
+        .card-actions-left {
             position: absolute;
             left: 12px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            z-index: 10;
+        }
+        .currency-card.editing .card-actions-left { display: flex; }
+
+        .drag-handle {
+            color: var(--text-gray);
+            font-size: 20px;
+            cursor: grab;
+            padding: 4px;
+            touch-action: none;
+        }
+        .drag-handle:active { cursor: grabbing; }
+
+        .delete-btn {
             background: var(--error-red);
             color: white;
             border: none;
             width: 28px;
             height: 28px;
             border-radius: 50%;
-            display: none;
-            z-index: 10;
+            display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
             cursor: pointer;
         }
-        .currency-card.editing .delete-btn { display: flex; }
         
         .flag-icon { 
             width: 42px; height: 42px; border-radius: 50%; 
@@ -134,134 +156,34 @@
         
         .currency-info { flex: 1.2; min-width: 0; }
         .currency-code { font-size: 18px; font-weight: bold; color: #FFF; line-height: 1.2; }
-        
         .currency-name { 
-            font-size: 11px; 
-            color: #FFFFFF; 
-            white-space: normal; 
-            word-wrap: break-word; 
-            line-height: 1.3;
-            margin-top: 2px;
-            opacity: 0.9;
+            font-size: 11px; color: #FFFFFF; opacity: 0.9;
+            white-space: normal; word-wrap: break-word; line-height: 1.3; margin-top: 2px;
         }
         
         .currency-value { flex: 1.5; text-align: right; padding-left: 8px; display: flex; flex-direction: column; align-items: flex-end; }
-        
-        .amount-wrapper { width: 100%; }
         .amount-input {
-            width: 100%;
-            background: transparent;
-            border: none;
-            color: var(--warn-yellow);
-            font-size: 21px;
-            font-weight: bold;
-            font-family: inherit;
-            text-align: right;
-            outline: none;
-            padding: 0;
-            margin: 0;
-            cursor: pointer;
+            width: 100%; background: transparent; border: none; color: var(--warn-yellow);
+            font-size: 21px; font-weight: bold; font-family: inherit; text-align: right; outline: none;
         }
-        
         .rate { font-size: 10px; color: var(--accent-blue); margin-top: 4px; font-weight: 500; }
 
         /* Modals */
         .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); /* 稍微透明一點 */
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center;
         }
         .modal.active { display: flex; }
-        .modal-content {
-            /* 讓 Modal 內容透明，只顯示計算機本體 */
-            background: transparent; 
-            width: 100%;
-            height: 100%;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: center; /* 垂直置中 */
-            align-items: center; /* 水平置中 */
-        }
-        
-        /* 固定計算機尺寸 */
-        .calc-container { 
-            width: 340px; /* 固定寬度 */
-            background: #1E1E1E;
-            padding: 24px; 
-            border-radius: 20px;
-            border: 1px solid #333;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        
-        .calc-header { 
-            text-align: right; 
-            padding: 16px; 
-            background: #121212; 
-            border-radius: 12px; 
-            margin-bottom: 20px; 
-            border: 1px solid #333; 
-            height: 80px; /* 固定螢幕高度 */
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-        }
-        
-        .calc-display { font-size: 32px; color: var(--warn-yellow); font-weight: bold; line-height: 1.2; }
-        
-        .calc-grid { 
-            display: grid; 
-            grid-template-columns: repeat(4, 1fr); 
-            gap: 12px; 
-        }
-        
-        .calc-btn { 
-            background: #2D2D2D; 
-            border: 0; 
-            color: white; 
-            height: 60px; /* 固定按鍵高度 */
-            font-size: 20px; 
-            font-family: inherit; 
-            border-radius: 12px; 
-            outline: none; 
-            cursor: pointer; 
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.1s;
-        }
-        .calc-btn:active { background: #444; transform: scale(0.98); }
-        .calc-btn.op { color: var(--accent-blue); font-weight: bold; background: #252525; }
-        .calc-btn.done { 
-            background: var(--primary-green); 
-            color: black; 
-            grid-column: span 2; 
-            font-weight: bold;
-        }
-
-        /* 針對 Add Modal 的樣式調整 */
-        #add-modal .modal-content {
-            background: #1E1E1E; /* Add Modal 保持深色背景 */
-            width: 100%;
-            height: 100%;
-            justify-content: flex-start;
-        }
-
-        .currency-option {
-            padding: 12px 16px;
-            border-bottom: 1px solid #2D2D2D;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-        }
-        .currency-option:active { background: #252525; }
+        .modal-content { background: transparent; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .calc-container { width: 340px; background: #1E1E1E; padding: 24px; border-radius: 20px; border: 1px solid #333; }
+        .calc-header { text-align: right; padding: 16px; background: #121212; border-radius: 12px; margin-bottom: 20px; border: 1px solid #333; height: 80px; display: flex; flex-direction: column; justify-content: flex-end; }
+        .calc-display { font-size: 32px; color: var(--warn-yellow); font-weight: bold; }
+        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .calc-btn { background: #2D2D2D; border: 0; color: white; height: 60px; font-size: 20px; border-radius: 12px; cursor: pointer; }
+        .calc-btn.op { color: var(--accent-blue); background: #252525; }
+        .calc-btn.done { background: var(--primary-green); color: black; grid-column: span 2; }
+        .currency-option { padding: 12px 16px; border-bottom: 1px solid #2D2D2D; display: flex; align-items: center; cursor: pointer; }
         .currency-option img { width: 32px; height: 32px; border-radius: 50%; margin-right: 12px; border: 1px solid #333; }
-        .currency-option-code { font-weight: bold; color: white; font-size: 16px; }
-        .currency-option-name { font-size: 12px; color: #999; }
     </style>
 </head>
 <body>
@@ -279,7 +201,6 @@
             <div class="header-content">
                 <div class="update-time" id="update-time">數據同步中...</div>
             </div>
-            
             <div class="controls">
                 <button class="btn" id="edit-btn">Edit</button>
                 <button class="btn" id="add-btn">+ Add</button>
@@ -290,16 +211,14 @@
                     <option value="openexchange">Open Exchange Rates</option>
                 </select>
             </div>
-
             <div id="currency-list" class="currency-list-container"></div>
         </div>
     </div>
 
-    <!-- 計算機 Modal -->
     <div class="modal" id="calc-modal">
         <div class="modal-content">
             <div class="calc-container">
-                <div id="calc-title" style="color:var(--primary-green); margin-bottom:10px; font-size:12px;">// 輸入來源: HKD</div>
+                <div id="calc-title" style="color:var(--primary-green); margin-bottom:10px; font-size:12px;"></div>
                 <div class="calc-header">
                     <div id="calc-expr" style="color:#555; font-size:14px; min-height:1.2em;"></div>
                     <div class="calc-display" id="calc-display">0</div>
@@ -330,43 +249,22 @@
         </div>
     </div>
 
-    <!-- 新增貨幣 Modal -->
     <div class="modal" id="add-modal">
         <div class="modal-content" style="background: #1E1E1E;">
             <div class="terminal-header" style="position:sticky; top:0;">
                 <div class="terminal-title">Select Currency</div>
                 <button class="btn" style="margin-left:auto; border-color:var(--error-red); color:var(--error-red);" id="modal-close">Close</button>
             </div>
-            <div id="currency-options" style="overflow-y:auto; flex:1;"></div>
+            <div id="currency-options" style="overflow-y:auto; flex:1; width:100%;"></div>
         </div>
     </div>
 
     <script>
         const API_CONFIGS = {
-            fxratesapi: {
-                name: 'FXRatesAPI',
-                key: 'fxr_live_38ad3c55b228cc844e71347bdb45cb3c63df',
-                buildUrl: (key, codes) => `https://api.fxratesapi.com/latest?api_key=${key}&base=USD&currencies=${codes.join(',')}`,
-                parseResponse: (data) => ({ success: data.success, rates: data.rates, timestamp: data.timestamp })
-            },
-            exchangeratefree: {
-                name: 'ExchangeRate-API (Free)',
-                key: '',
-                buildUrl: (key, codes) => `https://api.exchangerate-api.com/v4/latest/USD`,
-                parseResponse: (data) => ({ success: true, rates: data.rates, timestamp: data.time_last_updated })
-            },
-            exchangerate: {
-                name: 'ExchangeRate-API',
-                key: '0d5edd3dbe453790b0bcc4d6',
-                buildUrl: (key, codes) => `https://v6.exchangerate-api.com/v6/${key}/latest/USD`,
-                parseResponse: (data) => ({ success: data.result === 'success', rates: data.conversion_rates, timestamp: data.time_last_update_unix })
-            },
-            openexchange: {
-                name: 'Open Exchange Rates',
-                key: '219fb31cd84b49acb19edb3cb5e7cdfd',
-                buildUrl: (key, codes) => `https://openexchangerates.org/api/latest.json?app_id=${key}`,
-                parseResponse: (data) => ({ success: true, rates: data.rates, timestamp: data.timestamp })
-            }
+            fxratesapi: { name: 'FXRatesAPI', key: 'fxr_live_38ad3c55b228cc844e71347bdb45cb3c63df', buildUrl: (key, codes) => `https://api.fxratesapi.com/latest?api_key=${key}&base=USD&currencies=${codes.join(',')}`, parseResponse: (data) => ({ success: data.success, rates: data.rates, timestamp: data.timestamp }) },
+            exchangeratefree: { name: 'ExchangeRate-API (Free)', key: '', buildUrl: (key, codes) => `https://api.exchangerate-api.com/v4/latest/USD`, parseResponse: (data) => ({ success: true, rates: data.rates, timestamp: data.time_last_updated }) },
+            exchangerate: { name: 'ExchangeRate-API', key: '0d5edd3dbe453790b0bcc4d6', buildUrl: (key, codes) => `https://v6.exchangerate-api.com/v6/${key}/latest/USD`, parseResponse: (data) => ({ success: data.result === 'success', rates: data.conversion_rates, timestamp: data.time_last_update_unix }) },
+            openexchange: { name: 'Open Exchange Rates', key: '219fb31cd84b49acb19edb3cb5e7cdfd', buildUrl: (key, codes) => `https://openexchangerates.org/api/latest.json?app_id=${key}`, parseResponse: (data) => ({ success: true, rates: data.rates, timestamp: data.timestamp }) }
         };
 
         const allCurrencyInfo = {
@@ -400,44 +298,37 @@
         };
 
         const defaultCurrencies = ['HKD', 'USD', 'JPY', 'INR', 'TRY', 'CNY', 'TWD', 'NGN', 'EUR'];
-        let displayedCurrencies = [...defaultCurrencies];
+        
+        // --- 修改點 1：啟動時從 LocalStorage 讀取紀錄 ---
+        let displayedCurrencies = JSON.parse(localStorage.getItem('fx_terminal_list')) || [...defaultCurrencies];
+        
         let currentRates = null;
         let ratesVsHKD = null;
-        let isUpdating = false;
-        let isEditMode = false;
-        
-        // 新增：保存當前基準值 (HKD)，預設 1000
         let currentBaseHKD = 1000;
-        
-        // Calculator Variables
+        let isEditMode = false;
         let calcVal = "0";
         let calcTarget = "HKD";
 
+        // --- 修改點 2：建立儲存函數 ---
+        function saveSettings() {
+            localStorage.setItem('fx_terminal_list', JSON.stringify(displayedCurrencies));
+        }
+
         async function fetchRates(apiType) {
             const config = API_CONFIGS[apiType];
-            const apiUrl = config.buildUrl(config.key, Object.keys(allCurrencyInfo));
-
             try {
-                const response = await fetch(apiUrl);
+                const response = await fetch(config.buildUrl(config.key, Object.keys(allCurrencyInfo)));
                 const data = await response.json();
                 const parsed = config.parseResponse(data);
-                
-                const updateTime = new Date(parsed.timestamp * 1000);
-                document.getElementById('update-time').textContent = 
-                    `[${config.name}] Last updated: ${updateTime.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}`;
-                
+                document.getElementById('update-time').textContent = `[${config.name}] Last updated: ${new Date(parsed.timestamp * 1000).toLocaleString()}`;
                 currentRates = parsed.rates;
                 const hkdPerUsd = currentRates['HKD'];
                 ratesVsHKD = {};
-                for (const code in currentRates) {
-                    ratesVsHKD[code] = currentRates[code] / hkdPerUsd;
-                }
+                for (const code in currentRates) ratesVsHKD[code] = currentRates[code] / hkdPerUsd;
                 ratesVsHKD['HKD'] = 1;
-                
                 return ratesVsHKD;
             } catch (error) {
-                console.error('Error fetching rates:', error);
-                document.getElementById('update-time').textContent = '[ERROR] Failed to load exchange rates';
+                document.getElementById('update-time').textContent = '[ERROR] Failed to load rates';
                 return null;
             }
         }
@@ -448,112 +339,103 @@
             return parts.join('.');
         }
 
-        function updateAllAmounts(changedCode, changedAmount) {
-            if (isUpdating || !ratesVsHKD) return;
-            isUpdating = true;
-
-            const changedRate = ratesVsHKD[changedCode];
-            // 更新全局基準值
-            currentBaseHKD = changedAmount / changedRate;
-
-            displayedCurrencies.forEach(code => {
-                if (code === changedCode) {
-                    const input = document.getElementById(`input-${code}`);
-                    if(input) {
-                        const info = allCurrencyInfo[code];
-                        input.value = `${info.symbol} ${formatNumberWithCommas(changedAmount)}`;
-                    }
-                    return;
-                }
-                
-                const input = document.getElementById(`input-${code}`);
-                if (input) {
-                    const rate = ratesVsHKD[code];
-                    const amount = currentBaseHKD * rate;
-                    const info = allCurrencyInfo[code];
-                    input.value = `${info.symbol} ${formatNumberWithCommas(amount)}`;
-                }
-            });
-
-            isUpdating = false;
-        }
-
         function renderCurrencies() {
             const listElement = document.getElementById('currency-list');
             listElement.innerHTML = '';
 
-            displayedCurrencies.forEach((code, index) => {
+            displayedCurrencies.forEach((code) => {
                 const info = allCurrencyInfo[code];
                 if (!info || !ratesVsHKD[code]) return;
 
-                const rate = ratesVsHKD[code];
-                // 使用保存的基準值計算
-                const amount = currentBaseHKD * rate;
-                const isFixed = defaultCurrencies.includes(code);
+                const amount = currentBaseHKD * ratesVsHKD[code];
+                const isFixed = defaultCurrencies.slice(0, 1).includes(code);
                 
                 const card = document.createElement('div');
                 card.className = 'currency-card';
                 card.dataset.code = code;
+                card.draggable = isEditMode; 
                 if (isEditMode) card.classList.add('editing');
                 
-                const flagUrl = `https://flagcdn.com/w160/${info.code}.png`;
-                const rateDisplay = code === 'HKD' ? '' : `1 HKD = ${formatNumberWithCommas(rate, 4)} ${code}`;
-                
                 card.innerHTML = `
-                    ${!isFixed ? '<button class="delete-btn" data-code="' + code + '">×</button>' : ''}
+                    <div class="card-actions-left">
+                        <span class="drag-handle">⠿</span>
+                        ${!isFixed ? `<button class="delete-btn" data-code="${code}">×</button>` : ''}
+                    </div>
                     <div class="flag-icon">
-                        <img src="${flagUrl}" alt="${code}" onerror="this.style.display='none'" />
+                        <img src="https://flagcdn.com/w160/${info.code}.png" alt="${code}" />
                     </div>
                     <div class="currency-info">
                         <div class="currency-code">${code}</div>
                         <div class="currency-name">${info.name}</div>
                     </div>
                     <div class="currency-value">
-                        <div class="amount-wrapper">
-                            <input type="text" 
-                                   id="input-${code}" 
-                                   class="amount-input" 
-                                   value="${info.symbol} ${formatNumberWithCommas(amount)}" 
-                                   data-code="${code}" 
-                                   data-symbol="${info.symbol}" 
-                                   readonly />
-                        </div>
-                        <div class="rate">${rateDisplay}</div>
+                        <input type="text" id="input-${code}" class="amount-input" 
+                               value="${info.symbol} ${formatNumberWithCommas(amount)}" readonly />
+                        <div class="rate">${code === 'HKD' ? '' : `1 HKD = ${formatNumberWithCommas(ratesVsHKD[code], 4)} ${code}`}</div>
                     </div>
                 `;
                 
-                listElement.appendChild(card);
-
-                // Delete Button Handler
-                const deleteBtn = card.querySelector('.delete-btn');
-                if (deleteBtn) {
-                    deleteBtn.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        const codeToDelete = this.dataset.code;
-                        displayedCurrencies = displayedCurrencies.filter(c => c !== codeToDelete);
-                        renderCurrencies();
-                    });
-                }
-
-                // Input Click Handler -> Open Calculator
-                const input = document.getElementById(`input-${code}`);
-                input.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const symbol = this.dataset.symbol;
-                    let currentVal = parseFloat(this.value.replace(symbol, '').replace(/,/g, '').trim());
-                    if (isNaN(currentVal)) currentVal = 0;
-                    
-                    openCalc(code, currentVal);
+                card.addEventListener('dragstart', (e) => {
+                    if (!isEditMode) { e.preventDefault(); return; }
+                    card.classList.add('dragging');
                 });
+
+                card.addEventListener('dragend', () => {
+                    card.classList.remove('dragging');
+                    // --- 修改點 3-1：排序結束後儲存 ---
+                    displayedCurrencies = [...document.querySelectorAll('.currency-card')].map(c => c.dataset.code);
+                    saveSettings();
+                });
+
+                const delBtn = card.querySelector('.delete-btn');
+                if (delBtn) delBtn.onclick = (e) => { 
+                    e.stopPropagation(); 
+                    displayedCurrencies = displayedCurrencies.filter(c => c !== code); 
+                    // --- 修改點 3-2：刪除後儲存 ---
+                    saveSettings();
+                    renderCurrencies(); 
+                };
+
+                const input = card.querySelector('.amount-input');
+                input.onclick = (e) => {
+                    if (isEditMode) return;
+                    e.stopPropagation();
+                    openCalc(code, parseFloat(input.value.replace(/[^\d.-]/g, '')) || 0);
+                };
+
+                listElement.appendChild(card);
+            });
+
+            listElement.ondragover = e => {
+                e.preventDefault();
+                const draggingCard = document.querySelector('.dragging');
+                if (!draggingCard) return;
+                const afterElement = getDragAfterElement(listElement, e.clientY);
+                if (afterElement == null) listElement.appendChild(draggingCard);
+                else listElement.insertBefore(draggingCard, afterElement);
+            };
+        }
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.currency-card:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) return { offset: offset, element: child };
+                else return closest;
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function updateAllAmounts(changedCode, changedAmount) {
+            currentBaseHKD = changedAmount / ratesVsHKD[changedCode];
+            displayedCurrencies.forEach(code => {
+                const input = document.getElementById(`input-${code}`);
+                if (input) input.value = `${allCurrencyInfo[code].symbol} ${formatNumberWithCommas(currentBaseHKD * ratesVsHKD[code])}`;
             });
         }
 
-        // --- Calculator Logic ---
         function openCalc(code, val) {
-            calcTarget = code;
-            calcVal = val.toString();
-            if(calcVal === "0") calcVal = "0";
-            
+            calcTarget = code; calcVal = val.toString();
             document.getElementById('calc-title').textContent = `// 輸入來源: ${code}`;
             updateCalc();
             document.getElementById('calc-modal').classList.add('active');
@@ -563,8 +445,7 @@
 
         function calcInput(v) { 
             if(calcVal === "0" && v !== '.') calcVal = v; 
-            else calcVal += v; 
-            updateCalc(); 
+            else calcVal += v; updateCalc(); 
         }
         
         function calcAction(a) {
@@ -573,12 +454,8 @@
             else if(a==='DONE') {
                 try {
                     const result = Function(`return (${calcVal.replace(/×/g,'*').replace(/÷/g,'/')})`)();
-                    if(isFinite(result)) {
-                        updateAllAmounts(calcTarget, result);
-                        closeModal('calc-modal');
-                    } else {
-                        calcVal = "Error";
-                    }
+                    if(isFinite(result)) { updateAllAmounts(calcTarget, result); closeModal('calc-modal'); }
+                    else calcVal = "Error";
                 } catch(e) { calcVal="Error"; updateCalc(); setTimeout(()=>calcVal="0",500); }
             }
             updateCalc();
@@ -586,68 +463,50 @@
 
         function updateCalc() {
             document.getElementById('calc-display').textContent = calcVal;
-            try {
-                const expr = calcVal.replace(/×/g,'*').replace(/÷/g,'/');
-                if(/[\+\-\*\/]/.test(expr)) {
-                     const preview = Function(`return (${expr})`)();
-                     document.getElementById('calc-expr').textContent = (isNaN(preview) || !isFinite(preview))?"":`≈ ${preview.toLocaleString()}`;
-                } else {
-                     document.getElementById('calc-expr').textContent = "";
-                }
-            } catch(e) { document.getElementById('calc-expr').textContent = ""; }
+            const expr = calcVal.replace(/×/g,'*').replace(/÷/g,'/');
+            if(/[\+\-\*\/]/.test(expr)) {
+                try { const preview = Function(`return (${expr})`)(); document.getElementById('calc-expr').textContent = isNaN(preview)?"":`≈ ${preview.toLocaleString()}`; } catch(e){}
+            } else document.getElementById('calc-expr').textContent = "";
         }
 
-        function showAddModal() {
-            const modal = document.getElementById('add-modal');
-            const optionsContainer = document.getElementById('currency-options');
-            optionsContainer.innerHTML = '';
-
-            Object.keys(allCurrencyInfo).forEach(code => {
-                if (!displayedCurrencies.includes(code) && ratesVsHKD[code]) {
-                    const info = allCurrencyInfo[code];
-                    const option = document.createElement('div');
-                    option.className = 'currency-option';
-                    option.innerHTML = `
-                        <img src="https://flagcdn.com/w80/${info.code}.png" alt="${code}" />
-                        <div>
-                            <div class="currency-option-code">${code}</div>
-                            <div class="currency-option-name">${info.name}</div>
-                        </div>
-                    `;
-                    option.addEventListener('click', () => {
-                        displayedCurrencies.push(code);
-                        modal.classList.remove('active');
-                        renderCurrencies();
-                    });
-                    optionsContainer.appendChild(option);
-                }
-            });
-
-            modal.classList.add('active');
-        }
-
-        async function initialize() {
-            const apiType = document.getElementById('api-selector').value;
-            const rates = await fetchRates(apiType);
-            if (rates) {
-                renderCurrencies();
-            }
-        }
-
-        document.getElementById('edit-btn').addEventListener('click', () => {
+        document.getElementById('edit-btn').onclick = () => {
             isEditMode = !isEditMode;
             const btn = document.getElementById('edit-btn');
             btn.textContent = isEditMode ? 'Done' : 'Edit';
             btn.classList.toggle('editing');
             renderCurrencies();
-        });
+        };
 
-        document.getElementById('add-btn').addEventListener('click', showAddModal);
-        document.getElementById('modal-close').addEventListener('click', () => {
-            document.getElementById('add-modal').classList.remove('active');
-        });
+        document.getElementById('add-btn').onclick = () => {
+            const modal = document.getElementById('add-modal');
+            const container = document.getElementById('currency-options');
+            container.innerHTML = '';
+            Object.keys(allCurrencyInfo).forEach(code => {
+                if (!displayedCurrencies.includes(code) && ratesVsHKD[code]) {
+                    const option = document.createElement('div');
+                    option.className = 'currency-option';
+                    option.innerHTML = `<img src="https://flagcdn.com/w80/${allCurrencyInfo[code].code}.png" />
+                                       <div><div style="font-weight:bold;color:white;">${code}</div><div style="font-size:12px;color:#999;">${allCurrencyInfo[code].name}</div></div>`;
+                    option.onclick = () => { 
+                        displayedCurrencies.push(code); 
+                        // --- 修改點 3-3：新增後儲存 ---
+                        saveSettings();
+                        modal.classList.remove('active'); 
+                        renderCurrencies(); 
+                    };
+                    container.appendChild(option);
+                }
+            });
+            modal.classList.add('active');
+        };
 
-        document.getElementById('api-selector').addEventListener('change', initialize);
+        document.getElementById('modal-close').onclick = () => closeModal('add-modal');
+        document.getElementById('api-selector').onchange = initialize;
+
+        async function initialize() {
+            const rates = await fetchRates(document.getElementById('api-selector').value);
+            if (rates) renderCurrencies();
+        }
 
         initialize();
     </script>
