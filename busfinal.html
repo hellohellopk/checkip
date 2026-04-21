@@ -290,17 +290,9 @@
 
     <script>
         // ============================================================================
-        // 核心資料管理
+        // 核心資料管理 (已清除預設資料)
         // ============================================================================
-        const defaultRoutes = [
-            { stopName: '斧山道運動場', route: '5', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '尖沙咀碼頭' },
-            { stopName: '斧山道運動場', route: '3B', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '紅磡 (紅鸞道)' },
-            { stopName: '斧山道運動場', route: '3D', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '觀塘 (裕民坊)' },
-            { stopName: '斧山道運動場', route: '116', operators: ['kmb', 'ctb'], kmb_stop: '711A39D02DB2B4D8', ctb_stop: '001705', kmb_dir: 'O', ctb_dir: 'I', destinations: '鰂魚涌' },
-            { stopName: '天主教伍華中學', route: '5', operators: ['kmb'], kmb_stop: '0543B8455A70833F', kmb_dir: 'I', destinations: '富山邨' },
-            { stopName: '天主教伍華中學', route: '3B', operators: ['kmb'], kmb_stop: 'CFCA63CAF4C25D2B', kmb_dir: 'I', destinations: '慈雲山 (中)' },
-            { stopName: '天主教伍華中學', route: '116', operators: ['kmb', 'ctb'], kmb_stop: 'CFCA63CAF4C25D2B', ctb_stop: '001642', kmb_dir: 'I', ctb_dir: 'O', destinations: '慈雲山 (中)' }
-        ];
+        const defaultRoutes = [];
 
         let savedRoutes = [];
         let isLoading = false;
@@ -309,15 +301,16 @@
         let sortableInstance = null;
 
         function loadData() {
-            const v2Saved = localStorage.getItem('myBusRoutes_v2');
-            if (v2Saved) {
-                try { savedRoutes = JSON.parse(v2Saved); return; } catch (e) {}
+            // 變更存儲 Key 至 v3，確保不會載入到舊的預設資料，給使用者乾淨的畫面
+            const v3Saved = localStorage.getItem('myBusRoutes_v3');
+            if (v3Saved) {
+                try { savedRoutes = JSON.parse(v3Saved); return; } catch (e) {}
             }
             savedRoutes = JSON.parse(JSON.stringify(defaultRoutes));
         }
 
         function saveData(triggerRefresh = true) {
-            localStorage.setItem('myBusRoutes_v2', JSON.stringify(savedRoutes));
+            localStorage.setItem('myBusRoutes_v3', JSON.stringify(savedRoutes));
             if(triggerRefresh) manualRefresh();
         }
 
@@ -612,7 +605,7 @@
                         onEnd: function (evt) {
                             const movedItem = savedRoutes.splice(evt.oldIndex, 1)[0];
                             savedRoutes.splice(evt.newIndex, 0, movedItem);
-                            localStorage.setItem('myBusRoutes_v2', JSON.stringify(savedRoutes)); 
+                            localStorage.setItem('myBusRoutes_v3', JSON.stringify(savedRoutes)); 
                         }
                     });
                 }
@@ -628,7 +621,7 @@
             const card = btnElement.closest('.route-card');
             const index = Array.from(document.getElementById('bus-container').children).indexOf(card);
             savedRoutes.splice(index, 1);
-            localStorage.setItem('myBusRoutes_v2', JSON.stringify(savedRoutes));
+            localStorage.setItem('myBusRoutes_v3', JSON.stringify(savedRoutes));
             card.remove();
             if (savedRoutes.length === 0) toggleEditMode();
         }
