@@ -5,269 +5,437 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🚌 巴士到站時間</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
-            background: #1e1e1e;
+            font-family: 'PingFang HK', 'Noto Sans TC', 'Microsoft JhengHei', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f4f5f7;
+            color: #333;
+            /* 縮小整體外框間距 */
+            padding: 10px 8px;
             min-height: 100vh;
-            color: #00ff00;
+            max-width: 600px;
+            margin: 0 auto;
         }
-        
-        .terminal {
-            background: rgba(0, 0, 0, 0.85);
-            min-height: 100vh;
-        }
-        
-        .titlebar {
-            background: #2d2d2d;
-            padding: 10px 15px;
+
+        /* 頂部導航欄 */
+        .header {
             display: flex;
             align-items: center;
-            gap: 8px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            justify-content: space-between;
+            margin-bottom: 12px; /* 縮小與下方卡片的距離 */
+            padding: 0 4px;
         }
-        
-        .dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
-        
-        .dot.red { background: #ff5f56; }
-        .dot.yellow { background: #ffbd2e; }
-        .dot.green { background: #27c93f; }
-        
-        .title {
-            flex: 1;
-            text-align: center;
-            color: #999;
-            font-size: 13px;
+
+        .last-update-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        
-        .update-time {
-            color: #858585;
-            font-size: 11px;
-            margin-right: 10px;
+
+        .last-update {
+            font-size: 12px;
+            color: #888;
         }
-        
+
         .refresh-btn {
-            background: transparent;
-            color: #5fb3f6;
-            border: 1px solid #5fb3f6;
-            padding: 4px 10px;
-            border-radius: 4px;
+            background: #fff;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 6px;
+            border-radius: 50%;
             cursor: pointer;
-            font-family: inherit;
-            font-size: 11px;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
-        
+
         .refresh-btn:hover {
-            background: #5fb3f6;
-            color: #000;
+            background: #f0f0f0;
         }
-        
+
+        .refresh-btn:active {
+            transform: scale(0.95);
+        }
+
         .refresh-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            animation: spin 1s linear infinite;
         }
-        
-        .content {
-            padding: 20px;
-            font-size: 14px;
-            line-height: 1.6;
-            max-width: 1200px;
-            margin: 0 auto;
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
         }
-        
-        .prompt { color: #00ff00; }
-        .command { color: #00d4ff; }
-        .comment { color: #858585; }
-        
-        .station-group {
-            margin: 15px 0;
-            padding-left: 20px;
+
+        /* 卡片設計 */
+        .station-card {
+            background: #fff;
+            border-radius: 12px;
+            /* 大幅縮小卡片上下內距 */
+            padding: 10px 14px;
+            margin-bottom: 10px; /* 縮小卡片之間的間距 */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid #eaeaea;
         }
-        
+
         .station-header {
-            color: #5fb3f6;
-            margin-bottom: 8px;
-            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px; /* 縮小標題與路線的間距 */
+            font-size: 15px;
             font-weight: 600;
+            color: #111;
         }
-        
-        .station-header::before {
-            content: ">";
-            margin-right: 6px;
-            color: #858585;
+
+        .station-header svg {
+            width: 16px;
+            height: 16px;
+            color: #333;
+            flex-shrink: 0;
         }
-        
+
+        /* 單一路線區塊 */
         .bus-item {
             display: flex;
+            align-items: flex-start;
             justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #3e3e42;
+            /* 大幅縮小每條路線的上下間距 */
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
         }
-        
+
         .bus-item:last-child {
             border-bottom: none;
+            padding-bottom: 0;
         }
-        
+
         .bus-left {
             display: flex;
-            align-items: center;
-            gap: 20px;
+            gap: 12px; /* 縮小徽章與文字的水平間距 */
             flex: 1;
         }
-        
-        .route-number {
-            font-size: 48px;
-            font-weight: 600;
-            color: #5fb3f6;
-            min-width: 100px;
+
+        /* 路線號碼徽章 */
+        .route-badge {
+            background: #ce3043;
+            color: #fff;
+            font-size: 18px; /* 稍微縮小字體 */
+            font-weight: 700;
+            font-family: 'SF Pro Display', Arial, sans-serif;
+            min-width: 48px; /* 稍微縮小寬度 */
+            height: 34px; /* 稍微縮小高度 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            flex-shrink: 0;
+            margin-top: 2px; /* 微調對齊 */
         }
-        
+
+        /* 路線詳細資訊 */
+        .route-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px; /* 縮小目的地與營運商標籤的間距 */
+        }
+
         .destination {
-            color: #d4d4d4;
-            font-size: 32px;
-        }
-        
-        .eta-info {
-            text-align: right;
-            min-width: 150px;
-        }
-        
-        .eta-time {
-            font-size: 28px;
+            font-size: 15px;
             font-weight: 500;
-            color: #4ec9b0;
+            color: #111;
         }
-        
-        .eta-time.arriving {
-            color: #f39c12;
-            animation: blink 1.5s ease-in-out infinite;
+
+        .route-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
         }
-        
-        .eta-time.no-data {
-            color: #858585;
-        }
-        
-        .eta-next {
-            font-size: 18px;
-            color: #858585;
+
+        .operator-badge {
+            background: #f0f0f0;
+            color: #555;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            white-space: nowrap;
             margin-top: 2px;
         }
-        
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
+
+        /* ETA 時間區塊 */
+        .eta-list {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px; /* 縮小多個時間之間的垂直間距 */
+            min-width: 70px;
         }
-        
-        .footer-line {
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #3e3e42;
+
+        .eta-row {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+            white-space: nowrap;
         }
-        
-        .blink {
-            animation: blink 1s infinite;
+
+        .eta-primary {
+            font-size: 14px;
+            color: #111;
+            font-weight: 600;
         }
-        
-        @media (max-width: 480px) {
-            .route-number { font-size: 28px; min-width: 70px; }
-            .destination { font-size: 18px; }
-            .eta-time { font-size: 20px; }
-            .eta-next { font-size: 14px; }
-            .station-header { font-size: 18px; }
-            .update-time { font-size: 10px; }
+
+        .eta-primary strong {
+            font-size: 18px;
+            font-family: 'SF Pro Display', Arial, sans-serif;
+        }
+
+        .eta-secondary {
+            font-size: 13px;
+            color: #888;
+            font-weight: 500;
+        }
+
+        .eta-secondary strong {
+            font-size: 14px;
+            font-family: 'SF Pro Display', Arial, sans-serif;
+        }
+
+        .arriving {
+            color: #ce3043;
+        }
+
+        .no-data {
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        /* 狀態提示 */
+        .status-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        .error-message {
+            color: #ce3043;
+            background: #fde8e8;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div class="terminal">
-        <div class="titlebar">
-            <div class="dot red"></div>
-            <div class="dot yellow"></div>
-            <div class="dot green"></div>
-            <div class="title">bus-eta — bash</div>
-            <span class="update-time" id="last-update">--:--</span>
-            <button class="refresh-btn" id="refresh-btn" onclick="manualRefresh()">更新</button>
+    <div class="header">
+        <div class="header-title">
+            <span>🚌</span> 巴士到站時間
         </div>
-        <div class="content">
-            <div><span class="prompt">user@macbook ~ %</span> <span class="command">./bus-eta.sh</span></div>
-            <div style="margin: 15px 0 10px 20px;">
-                <span class="comment"># 巴士到站時間 🚌</span>
-            </div>
-            
-            <div id="bus-container">
-                <div style="margin: 20px; color: #858585;">載入中<span class="blink">_</span></div>
-            </div>
-            
-            <div class="footer-line">
-                <span class="prompt">user@macbook ~ %</span> 
-                <span class="blink" style="margin-left:5px;">_</span>
-            </div>
+        <div class="last-update-box">
+            <span class="last-update" id="last-update">--:--</span>
+            <button class="refresh-btn" id="refresh-btn" onclick="manualRefresh()" title="更新">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                </svg>
+            </button>
         </div>
+    </div>
+
+    <div id="error-alert" class="error-message">⚠️ 更新失敗，請檢查網路連線。</div>
+    
+    <div id="bus-container">
+        <div class="status-message">載入中...</div>
     </div>
 
     <script>
         const stationGroups = [
             {
-                stationName: '斧山道運動場',
+                stationName: '斧山道運動場 WT365',
                 routes: [
-                    { route: '5', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '尖沙咀碼頭' },
-                    { route: '3B', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '紅磡 (紅鸞道)' },
-                    { route: '3D', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '觀塘(裕民坊)' },
-                    { route: '116', operators: ['kmb', 'ctb'], kmb_stop: '711A39D02DB2B4D8', ctb_stop: '001705', kmb_dir: 'O', ctb_dir: 'I', destinations: '鰂魚涌' }
+                    {
+                        route: '5',
+                        operators: ['kmb'],
+                        kmb_stop: '711A39D02DB2B4D8',
+                        kmb_dir: 'O',
+                        destinations: '尖沙咀碼頭',
+                        stop_code: 'WT365'
+                    },
+                    {
+                        route: '3B',
+                        operators: ['kmb'],
+                        kmb_stop: '711A39D02DB2B4D8',
+                        kmb_dir: 'O',
+                        destinations: '紅磡 (紅鸞道)',
+                        stop_code: 'WT365'
+                    },
+                    {
+                        route: '3D',
+                        operators: ['kmb'],
+                        kmb_stop: '711A39D02DB2B4D8',
+                        kmb_dir: 'O',
+                        destinations: '觀塘 (裕民坊)',
+                        stop_code: 'WT365'
+                    },
+                    {
+                        route: '116',
+                        operators: ['kmb', 'ctb'],
+                        kmb_stop: '711A39D02DB2B4D8',
+                        ctb_stop: '001705',
+                        kmb_dir: 'O',
+                        ctb_dir: 'I',
+                        destinations: '鰂魚涌',
+                        stop_code: 'WT365'
+                    }
                 ]
             },
             {
                 stationName: '天主教伍華中學 / 九龍灣',
                 routes: [
-                    { route: '5', operators: ['kmb'], kmb_stop: '0543B8455A70833F', kmb_dir: 'I', destinations: '富山邨' },
-                    { route: '3B', operators: ['kmb'], kmb_stop: 'CFCA63CAF4C25D2B', kmb_dir: 'I', destinations: '慈雲山(中)' },
-                    { route: '116', operators: ['kmb', 'ctb'], kmb_stop: 'CFCA63CAF4C25D2B', ctb_stop: '001642', kmb_dir: 'I', ctb_dir: 'O', destinations: '慈雲山(中)' },
-                    { route: '203E', operators: ['kmb'], kmb_stop: 'CFCA63CAF4C25D2B', kmb_dir: 'I', destinations: '彩虹' },
-                    { route: '3D', operators: ['kmb'], kmb_stop: '5E1B227D9FAC4267', kmb_dir: 'I', destinations: '慈雲山(中)' }
+                    {
+                        route: '5',
+                        operators: ['kmb'],
+                        kmb_stop: '0543B8455A70833F',
+                        kmb_dir: 'I',
+                        destinations: '富山邨',
+                        stop_code: 'WT321'
+                    },
+                    {
+                        route: '3B',
+                        operators: ['kmb'],
+                        kmb_stop: 'CFCA63CAF4C25D2B',
+                        kmb_dir: 'I',
+                        destinations: '慈雲山 (中)',
+                        stop_code: 'WT320'
+                    },
+                    {
+                        route: '116',
+                        operators: ['kmb', 'ctb'],
+                        kmb_stop: 'CFCA63CAF4C25D2B',
+                        ctb_stop: '001642',
+                        kmb_dir: 'I',
+                        ctb_dir: 'O',
+                        destinations: '慈雲山 (中)',
+                        stop_code: 'WT320'
+                    },
+                    {
+                        route: '203E',
+                        operators: ['kmb'],
+                        kmb_stop: 'CFCA63CAF4C25D2B',
+                        kmb_dir: 'I',
+                        destinations: '彩虹',
+                        stop_code: 'WT320'
+                    },
+                    {
+                        route: '3D',
+                        operators: ['kmb'],
+                        kmb_stop: '5E1B227D9FAC4267',
+                        kmb_dir: 'I',
+                        destinations: '慈雲山 (中)',
+                        stop_code: 'WT350'
+                    }
                 ]
             },
             {
-                stationName: '其他',
+                stationName: '牛池灣轉車站-紅萼樓 (WT704)',
                 routes: [
-                    { route: '290', operators: ['kmb'], kmb_stop: '58584BC1AC41723C', kmb_dir: 'O', destinations: '荃灣西站' },
-                    { route: '290A', operators: ['kmb'], kmb_stop: '58584BC1AC41723C', kmb_dir: 'O', destinations: '荃灣西站' },
-                    { route: '290X', operators: ['kmb'], kmb_stop: '58584BC1AC41723C', kmb_dir: 'O', destinations: '荃灣西站' },
-                    { route: '38', operators: ['kmb'], kmb_stop: '58584BC1AC41723C', kmb_dir: 'I', destinations: '葵盛(東)' }
+                    {
+                        route: '290',
+                        operators: ['kmb'],
+                        kmb_stop: '58584BC1AC41723C',
+                        kmb_dir: 'O',
+                        destinations: '荃灣西站',
+                        stop_code: ''
+                    },
+                    {
+                        route: '290A',
+                        operators: ['kmb'],
+                        kmb_stop: '58584BC1AC41723C',
+                        kmb_dir: 'O',
+                        destinations: '荃灣西站',
+                        stop_code: ''
+                    },
+                    {
+                        route: '290X',
+                        operators: ['kmb'],
+                        kmb_stop: '58584BC1AC41723C',
+                        kmb_dir: 'O',
+                        destinations: '荃灣西站',
+                        stop_code: ''
+                    },
+                    {
+                        route: '38',
+                        operators: ['kmb'],
+                        kmb_stop: '58584BC1AC41723C',
+                        kmb_dir: 'I',
+                        destinations: '葵盛 (東)',
+                        stop_code: ''
+                    }
                 ]
             }
         ];
 
         let isLoading = false;
+        let autoRefreshTimer = null;
 
         async function fetchKMBETA(stopId, route) {
             try {
-                const r = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${stopId}/${route}/1`);
-                const d = await r.json();
-                return d.data || [];
-            } catch { return []; }
+                const response = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${stopId}/${route}/1`);
+                const data = await response.json();
+                return data.data || [];
+            } catch (error) {
+                console.error(`KMB API Error (${route}):`, error);
+                return [];
+            }
         }
 
         async function fetchCTBETA(stopId, route) {
             try {
-                const r = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${stopId}/${route}`);
-                const d = await r.json();
-                return d.data || [];
-            } catch { return []; }
+                const response = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${stopId}/${route}`);
+                const data = await response.json();
+                return data.data || [];
+            } catch (error) {
+                console.error(`CTB API Error (${route}):`, error);
+                return [];
+            }
         }
 
         function getMinutesDiff(etaString) {
             if (!etaString) return null;
-            return Math.round((new Date(etaString) - new Date()) / 60000);
+            const now = new Date();
+            const eta = new Date(etaString);
+            const diff = Math.round((eta - now) / 60000);
+            return diff;
+        }
+
+        function formatETAs(etaArray) {
+            return etaArray
+                .map(item => ({
+                    min: getMinutesDiff(item.eta),
+                    operator: item.operator
+                }))
+                .filter(item => item.min !== null && item.min >= 0)
+                .slice(0, 2); // 這裡改為最多只取 2 班車
         }
 
         async function process116Route(route) {
@@ -276,73 +444,152 @@
                 fetchCTBETA(route.ctb_stop, route.route)
             ]);
 
-            let allETA = [];
-            kmbData.filter(b => b.dir === route.kmb_dir).slice(0, 3).forEach(b => b.eta && allETA.push({ eta: b.eta }));
-            ctbData.filter(b => b.dir === route.ctb_dir && !(b.rmk_tc || '').includes('九巴時段')).slice(0, 3).forEach(b => b.eta && allETA.push({ eta: b.eta }));
-            allETA.sort((a, b) => new Date(a.eta) - new Date(b.eta));
+            const kmbFiltered = kmbData.filter(bus => bus.dir === route.kmb_dir);
+            const ctbFiltered = ctbData.filter(bus => bus.dir === route.ctb_dir);
 
-            return { first: allETA[0]?.eta, second: allETA[1]?.eta, third: allETA[2]?.eta };
+            let allETA = [];
+
+            kmbFiltered.slice(0, 3).forEach(bus => {
+                if (bus.eta) allETA.push({ eta: bus.eta, operator: '九巴' });
+            });
+
+            ctbFiltered.slice(0, 3).forEach(bus => {
+                if (bus.eta && bus.eta !== '') {
+                    const rmk = bus.rmk_tc || '';
+                    if (!rmk.includes('九巴時段')) {
+                        allETA.push({ eta: bus.eta, operator: '城巴' });
+                    }
+                }
+            });
+
+            allETA.sort((a, b) => new Date(a.eta) - new Date(b.eta));
+            return formatETAs(allETA);
         }
 
         async function processKMBRoute(route) {
-            const data = await fetchKMBETA(route.kmb_stop, route.route);
-            const filtered = data.filter(b => b.dir === route.kmb_dir);
-            return { first: filtered[0]?.eta, second: filtered[1]?.eta, third: filtered[2]?.eta };
+            const kmbData = await fetchKMBETA(route.kmb_stop, route.route);
+            const filtered = kmbData.filter(bus => bus.dir === route.kmb_dir);
+            
+            let allETA = filtered.map(bus => ({
+                eta: bus.eta,
+                operator: '九巴'
+            }));
+
+            return formatETAs(allETA);
+        }
+
+        function generateEtaHTML(etas) {
+            if (!etas || etas.length === 0) {
+                return `<div class="eta-row no-data">暫無班次</div>`;
+            }
+
+            let html = '';
+            etas.forEach((eta, index) => {
+                if (index === 0) {
+                    const isArriving = eta.min <= 2;
+                    const text = eta.min === 0 ? `<span class="arriving">即將到達</span>` : `<strong>${eta.min}</strong> 分鐘`;
+                    const colorClass = isArriving ? 'arriving' : '';
+                    html += `<div class="eta-row eta-primary ${colorClass}">${text}</div>`;
+                } else {
+                    html += `<div class="eta-row eta-secondary"><strong>${eta.min}</strong> 分鐘</div>`;
+                }
+            });
+            return html;
         }
 
         async function renderBuses() {
             const container = document.getElementById('bus-container');
-            document.getElementById('last-update').textContent = 
-                new Date().toLocaleTimeString('zh-HK', {hour: '2-digit', minute: '2-digit'});
+            const errorAlert = document.getElementById('error-alert');
+            errorAlert.style.display = 'none';
+
+            const groupsData = await Promise.all(stationGroups.map(async (group) => {
+                const routesData = await Promise.all(group.routes.map(async (route) => {
+                    let etas = route.route === '116' ? await process116Route(route) : await processKMBRoute(route);
+                    let mainOperator = etas.length > 0 ? etas[0].operator : (route.operators.includes('ctb') ? '城巴' : '九巴');
+                    return { route, etas, mainOperator };
+                }));
+                return { groupName: group.stationName, routesData };
+            }));
 
             container.innerHTML = '';
+            
+            groupsData.forEach(data => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'station-card';
 
-            for (const group of stationGroups) {
-                const groupDiv = document.createElement('div');
-                groupDiv.className = 'station-group';
-                groupDiv.innerHTML = `<div class="station-header">${group.stationName}</div>`;
+                cardDiv.innerHTML = `
+                    <div class="station-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        ${data.groupName}
+                    </div>
+                `;
 
-                for (const route of group.routes) {
-                    const eta = route.route === '116' ? await process116Route(route) : await processKMBRoute(route);
-                    
-                    let mins = [eta.first, eta.second, eta.third].map(getMinutesDiff).filter(m => m !== null && m >= 0);
-                    
-                    let firstClass = '', firstText = '---';
-                    if (mins[0] !== undefined) {
-                        if (mins[0] === 0) { firstClass = 'arriving'; firstText = '即將到達'; }
-                        else if (mins[0] <= 2) { firstClass = 'arriving'; firstText = `${mins[0]}分鐘`; }
-                        else { firstText = `${mins[0]}分鐘`; }
-                    } else { firstClass = 'no-data'; }
-
+                data.routesData.forEach(item => {
                     const busItem = document.createElement('div');
                     busItem.className = 'bus-item';
+                    
+                    const operatorBadgeHTML = item.mainOperator !== '九巴' 
+                        ? `<div class="route-meta"><span class="operator-badge">${item.mainOperator}</span></div>` 
+                        : '';
+
                     busItem.innerHTML = `
                         <div class="bus-left">
-                            <div class="route-number">${route.route}</div>
-                            <div class="destination">${route.destinations}</div>
+                            <div class="route-badge">${item.route.route}</div>
+                            <div class="route-info">
+                                <div class="destination">往 ${item.route.destinations}</div>
+                                ${operatorBadgeHTML}
+                            </div>
                         </div>
-                        <div class="eta-info">
-                            <div class="eta-time ${firstClass}">${firstText}</div>
-                            ${mins[1] ? `<div class="eta-next">${mins[1]}分鐘</div>` : ''}
-                            ${mins[2] ? `<div class="eta-next">${mins[2]}分鐘</div>` : ''}
+                        <div class="eta-list">
+                            ${generateEtaHTML(item.etas)}
                         </div>
                     `;
-                    groupDiv.appendChild(busItem);
-                }
-                container.appendChild(groupDiv);
-            }
+                    cardDiv.appendChild(busItem);
+                });
+
+                container.appendChild(cardDiv);
+            });
+
+            const now = new Date();
+            document.getElementById('last-update').textContent = now.toLocaleTimeString('zh-HK', {hour: '2-digit', minute: '2-digit'});
         }
 
         async function manualRefresh() {
             if (isLoading) return;
             isLoading = true;
-            document.getElementById('refresh-btn').disabled = true;
-            await renderBuses();
-            isLoading = false;
-            document.getElementById('refresh-btn').disabled = false;
+            
+            const btn = document.getElementById('refresh-btn');
+            btn.disabled = true;
+
+            try {
+                await renderBuses();
+                resetAutoRefresh();
+            } catch (error) {
+                console.error('更新失敗:', error);
+                document.getElementById('error-alert').style.display = 'block';
+                document.getElementById('bus-container').innerHTML = '<div class="status-message">載入失敗，請重試。</div>';
+            } finally {
+                isLoading = false;
+                btn.disabled = false;
+            }
         }
 
-        window.addEventListener('load', manualRefresh);
+        function resetAutoRefresh() {
+            if (autoRefreshTimer) {
+                clearInterval(autoRefreshTimer);
+            }
+            autoRefreshTimer = setInterval(() => {
+                manualRefresh();
+            }, 60000); 
+        }
+
+        window.addEventListener('load', () => {
+            manualRefresh();
+        });
     </script>
 </body>
 </html>
+```
