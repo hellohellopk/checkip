@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🚌 巴士到站時間</title>
+    <!-- 引入 SortableJS 以支援流暢的觸控拖曳排序 -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'PingFang HK', 'Noto Sans TC', 'Microsoft JhengHei', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f4f5f7;
+            color: #333;
+            padding: 10px 8px;
+            min-height: 100vh;
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* --- 主畫面頂部導航欄 --- */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding: 0 4px;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .last-update {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .icon-btn {
+            background: #fff;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 6px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+
+        .icon-btn:active { transform: scale(0.95); }
+        .icon-btn:disabled { opacity: 0.5; animation: spin 1s linear infinite; }
+        
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* --- 單一卡片設計 --- */
+        .route-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 10px 14px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid #eaeaea;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            background-color: #fff;
+            transition: box-shadow 0.2s;
+        }
+
+        .route-card.sortable-ghost {
+            opacity: 0.4;
+            background: #f0f0f0;
+        }
+
+        .drag-handle {
+            display: none;
+            padding-right: 12px;
+            color: #bbb;
+            cursor: grab;
+        }
+        .drag-handle:active { cursor: grabbing; }
+
+        .bus-left {
+            display: flex;
+            gap: 12px;
+            flex: 1;
+            align-items: center;
+        }
+
+        /* 路線號碼徽章 (根據營運商切換顏色) */
+        .route-badge {
+            font-size: 18px;
+            font-weight: 700;
+            font-family: 'SF Pro Display', Arial, sans-serif;
+            min-width: 48px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+        
+        .bg-kmb { background: #ce3043; color: #fff; } /* 九巴紅 */
+        .bg-ctb { background: #fccc0a; color: #111; } /* 城巴黃 */
+        .bg-joint { 
+            background: linear-gradient(135deg, #ce3043 50%, #fccc0a 50%); 
+            color: #fff; 
+            text-shadow: 0px 1px 2px rgba(0,0,0,0.7); /* 聯營雙色漸層 */
+        }
+
+        .route-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px;
+        }
+
+        .destination {
+            font-size: 15px;
+            font-weight: 600;
+            color: #111;
+        }
+
+        .station-name-sub {
+            font-size: 12px;
+            color: #777;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 500;
+        }
+
+        .station-name-sub svg {
+            width: 12px;
+            height: 12px;
+            color: #999;
+        }
+
+        /* ETA 時間區塊 */
+        .eta-list {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+            min-width: 70px;
+        }
+
+        .eta-row {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        .eta-primary { font-size: 14px; color: #111; font-weight: 600; }
+        .eta-primary strong { font-size: 18px; font-family: 'SF Pro Display', Arial, sans-serif; }
+        .eta-secondary { font-size: 13px; color: #888; font-weight: 500; }
+        .eta-secondary strong { font-size: 14px; font-family: 'SF Pro Display', Arial, sans-serif; }
+        .arriving { color: #ce3043; }
+        .no-data { font-size: 13px; color: #aaa; }
+
+        /* --- 編輯模式樣式 --- */
+        .delete-route-btn {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #ce3043;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 26px;
+            height: 26px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .edit-mode .drag-handle { display: block; }
+        .edit-mode .delete-route-btn { display: flex; }
+        .edit-mode .eta-list { display: none; }
+        .edit-mode .bus-left { padding-right: 36px; }
+
+        /* --- 備份/還原 底部區域 --- */
+        .footer-actions {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 24px;
+            padding-bottom: 30px;
+        }
+
+        .footer-btn {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+
+        .footer-btn:active { background: #f0f0f0; transform: scale(0.95); }
+
+        /* 狀態提示 */
+        .status-message { text-align: center; padding: 40px 20px; color: #888; font-size: 14px; line-height: 1.6; }
+        .error-message { color: #ce3043; background: #fde8e8; padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 12px; font-size: 14px; display: none; }
+
+        /* ==================================================================
+           新增路線頁面 (Overlay)
+           ================================================================== */
+        #add-view {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #fafafa; z-index: 1000; display: none;
+            flex-direction: column; overflow: hidden;
+        }
+
+        .add-header {
+            display: flex; align-items: center; padding: 16px;
+            background: #fff; border-bottom: 1px solid #f0f0f0;
+            font-weight: 600; font-size: 18px;
+        }
+
+        .back-btn { background: none; border: none; font-size: 20px; padding: 4px 12px 4px 0; cursor: pointer; color: #111; }
+
+        .search-area { background: #fff; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; }
+
+        .search-box {
+            display: flex; align-items: center; background: #f4f5f7; border-radius: 10px;
+            padding: 8px 12px; margin-bottom: 8px;
+        }
+        .search-box svg { color: #888; width: 18px; height: 18px; margin-right: 8px; }
+        .search-box input { border: none; background: transparent; outline: none; font-size: 15px; flex: 1; color: #111; padding: 4px 0; }
+        
+        .search-btn {
+            background: #ce3043; color: #fff; border: none; padding: 8px 16px; border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer; margin-left: 8px;
+        }
+        .search-btn:active { transform: scale(0.95); }
+
+        .search-results-area { flex: 1; overflow-y: auto; background: #fafafa; padding: 12px 16px; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #888; font-size: 14px; }
+
+        .result-item {
+            background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 10px;
+            border: 1px solid #eaeaea; box-shadow: 0 1px 3px rgba(0,0,0,0.02); cursor: pointer;
+        }
+        .result-item:active { background: #f9f9f9; }
+        .result-item-header { display: flex; gap: 10px; align-items: center; margin-bottom: 4px; }
+        .result-route-num { font-size: 18px; font-weight: 700; color: #ce3043; width: 50px; }
+        .result-dest { font-size: 15px; font-weight: 500; }
+        .result-meta { font-size: 12px; color: #888; display: flex; gap: 8px; }
+
+        /* 儲存路線對話框 */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 2000;
+            display: none; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: #fff; width: 90%; max-width: 320px;
+            border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+        .modal-info { font-size: 14px; color: #555; margin-bottom: 24px; background: #f4f5f7; padding: 12px; border-radius: 8px; line-height: 1.5; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+        .btn-cancel { padding: 8px 16px; background: #f0f0f0; border: none; border-radius: 6px; cursor: pointer; color: #333; font-weight: 500;}
+        .btn-confirm { padding: 8px 16px; background: #ce3043; border: none; border-radius: 6px; cursor: pointer; color: #fff; font-weight: 500;}
+
+    </style>
+</head>
+<body>
+    <!-- ==================== 主畫面 ==================== -->
+    <div id="main-view">
+        <div class="header">
+            <div class="header-title">
+                <span>🚌</span> 巴士到站時間
+                <span class="last-update" id="last-update">--:--</span>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" id="edit-btn" onclick="toggleEditMode()" title="編輯路線">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                </button>
+                <button class="icon-btn" onclick="openAddView()" title="新增路線">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>
+                <button class="icon-btn" id="refresh-btn" onclick="manualRefresh()" title="更新">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <div id="error-alert" class="error-message">⚠️ 更新失敗，請檢查網路連線。</div>
+        
+        <div id="bus-container">
+            <div class="status-message">載入中...</div>
+        </div>
+
+        <!-- 匯出與匯入按鈕 -->
+        <div class="footer-actions">
+            <button class="footer-btn" onclick="exportData()">💾 匯出備份</button>
+            <button class="footer-btn" onclick="document.getElementById('import-file').click()">📂 匯入備份</button>
+            <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)">
+        </div>
+    </div>
+
+    <!-- ==================== 新增路線視窗 ==================== -->
+    <div id="add-view">
+        <div class="add-header">
+            <button class="back-btn" onclick="closeAddView()">←</button>
+            <span id="add-view-title">新增路線</span>
+        </div>
+
+        <div class="search-area">
+            <div class="search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="route-input" placeholder="路線 (例如 1A, 290)" oninput="debounceSearch()" onkeypress="if(event.key === 'Enter') performSearch()">
+                <button class="search-btn" onclick="performSearch()">搜尋</button>
+            </div>
+        </div>
+
+        <div class="search-results-area" id="search-results">
+            <div class="empty-state">輸入路線號碼後點擊「搜尋」</div>
+        </div>
+    </div>
+
+    <!-- ==================== 儲存路線的 Modal ==================== -->
+    <div class="modal-overlay" id="save-modal">
+        <div class="modal-content">
+            <div class="modal-title">加入此路線？</div>
+            <div class="modal-info" id="save-modal-info"></div>
+            
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeSaveModal()">取消</button>
+                <button class="btn-confirm" onclick="confirmSaveRoute()">確認加入</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // 核心資料與狀態管理
+        // ============================================================================
+        
+        const defaultRoutes = [
+            { stopName: '斧山道運動場', route: '5', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '尖沙咀碼頭' },
+            { stopName: '斧山道運動場', route: '3B', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '紅磡 (紅鸞道)' },
+            { stopName: '斧山道運動場', route: '3D', operators: ['kmb'], kmb_stop: '711A39D02DB2B4D8', kmb_dir: 'O', destinations: '觀塘 (裕民坊)' },
+            { stopName: '斧山道運動場', route: '116', operators: ['kmb', 'ctb'], kmb_stop: '711A39D02DB2B4D8', ctb_stop: '001705', kmb_dir: 'O', ctb_dir: 'I', destinations: '鰂魚涌' },
+            { stopName: '天主教伍華中學', route: '5', operators: ['kmb'], kmb_stop: '0543B8455A70833F', kmb_dir: 'I', destinations: '富山邨' },
+            { stopName: '天主教伍華中學', route: '3B', operators: ['kmb'], kmb_stop: 'CFCA63CAF4C25D2B', kmb_dir: 'I', destinations: '慈雲山 (中)' },
+            { stopName: '天主教伍華中學', route: '116', operators: ['kmb', 'ctb'], kmb_stop: 'CFCA63CAF4C25D2B', ctb_stop: '001642', kmb_dir: 'I', ctb_dir: 'O', destinations: '慈雲山 (中)' },
+            { stopName: '天主教伍華中學', route: '203E', operators: ['kmb'], kmb_stop: 'CFCA63CAF4C25D2B', kmb_dir: 'I', destinations: '彩虹' },
+            { stopName: '彩虹邨紅萼樓', route: '3D', operators: ['kmb'], kmb_stop: '5E1B227D9FAC4267', kmb_dir: 'I', destinations: '慈雲山 (中)' }
+        ];
+
+        let savedRoutes = [];
+        let isLoading = false;
+        let autoRefreshTimer = null;
+        let isEditMode = false;
+        let sortableInstance = null;
+
+        function loadData() {
+            const v2Saved = localStorage.getItem('myBusRoutes_v2');
+            if (v2Saved) {
+                try { savedRoutes = JSON.parse(v2Saved); return; } catch (e) {}
+            }
+            savedRoutes = JSON.parse(JSON.stringify(defaultRoutes));
+        }
+
+        function saveData(triggerRefresh = true) {
+            localStorage.setItem('myBusRoutes_v2', JSON.stringify(savedRoutes));
+            if(triggerRefresh) manualRefresh();
+        }
+
+        // ============================================================================
+        // 匯出與匯入資料 (Save to Local File)
+        // ============================================================================
+        
+        function exportData() {
+            if (savedRoutes.length === 0) {
+                alert("目前沒有路線可以備份喔！");
+                return;
+            }
+            // 將陣列轉為格式化的 JSON 字串
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(savedRoutes, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "bus_routes_backup.json"); // 設定下載檔名
+            document.body.appendChild(downloadAnchorNode); // Firefox 相容性
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        savedRoutes = importedData;
+                        saveData(true);
+                        alert("✅ 路線資料匯入成功！");
+                    } else {
+                        alert("❌ 檔案格式不正確，請確認這是否為系統匯出的備份檔。");
+                    }
+                } catch (err) {
+                    alert("❌ 讀取檔案失敗：" + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // 讀取完畢後重置 input
+        }
+
+        // ============================================================================
+        // ETA 獲取與渲染
+        // ============================================================================
+
+        async function fetchETAAPI(url) {
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                return data.data || [];
+            } catch (error) { return []; }
+        }
+
+        function getMinutesDiff(etaString) {
+            if (!etaString) return null;
+            const now = new Date();
+            const eta = new Date(etaString);
+            return Math.round((eta - now) / 60000);
+        }
+
+        function formatETAs(etaArray) {
+            return etaArray
+                .map(item => ({ min: getMinutesDiff(item.eta) }))
+                .filter(item => item.min !== null && item.min >= 0)
+                .slice(0, 2);
+        }
+
+        async function processSingleRoute(route, operator) {
+            let data = [];
+            let allETA = [];
+            if (operator === 'kmb') {
+                data = await fetchETAAPI(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${route.kmb_stop}/${route.route}/1`);
+                const filtered = data.filter(bus => bus.dir === route.kmb_dir);
+                allETA = filtered.map(bus => ({ eta: bus.eta }));
+            } else if (operator === 'ctb') {
+                data = await fetchETAAPI(`https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${route.ctb_stop}/${route.route}`);
+                const filtered = data.filter(bus => bus.dir === route.ctb_dir);
+                allETA = filtered.map(bus => ({ eta: bus.eta }));
+            }
+            return formatETAs(allETA);
+        }
+
+        async function processJointRoute(route) {
+            const [kmbData, ctbData] = await Promise.all([
+                fetchETAAPI(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${route.kmb_stop}/${route.route}/1`),
+                fetchETAAPI(`https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${route.ctb_stop}/${route.route}`)
+            ]);
+
+            const kmbFiltered = kmbData.filter(bus => bus.dir === route.kmb_dir);
+            const ctbFiltered = ctbData.filter(bus => bus.dir === route.ctb_dir);
+
+            let allETA = [];
+            kmbFiltered.slice(0, 3).forEach(bus => { if (bus.eta) allETA.push({ eta: bus.eta }); });
+            ctbFiltered.slice(0, 3).forEach(bus => {
+                if (bus.eta && bus.eta !== '') {
+                    const rmk = bus.rmk_tc || '';
+                    if (!rmk.includes('九巴時段')) allETA.push({ eta: bus.eta });
+                }
+            });
+            allETA.sort((a, b) => new Date(a.eta) - new Date(b.eta));
+            return formatETAs(allETA);
+        }
+
+        function generateEtaHTML(etas) {
+            if (!etas || etas.length === 0) return `<div class="eta-row no-data">暫無班次</div>`;
+            let html = '';
+            etas.forEach((eta, index) => {
+                if (index === 0) {
+                    const isArriving = eta.min <= 2;
+                    const text = eta.min === 0 ? `<span class="arriving">即將到達</span>` : `<strong>${eta.min}</strong> 分鐘`;
+                    const colorClass = isArriving ? 'arriving' : '';
+                    html += `<div class="eta-row eta-primary ${colorClass}">${text}</div>`;
+                } else {
+                    html += `<div class="eta-row eta-secondary"><strong>${eta.min}</strong> 分鐘</div>`;
+                }
+            });
+            return html;
+        }
+
+        async function renderBuses() {
+            const container = document.getElementById('bus-container');
+            const errorAlert = document.getElementById('error-alert');
+            errorAlert.style.display = 'none';
+
+            if(savedRoutes.length === 0) {
+                container.innerHTML = '<div class="status-message">目前沒有儲存任何路線。<br>請點擊右上角的「＋」新增。</div>';
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString('zh-HK', {hour: '2-digit', minute: '2-digit'});
+                return;
+            }
+
+            try {
+                const routesData = await Promise.all(savedRoutes.map(async (route, index) => {
+                    let etas = [];
+                    if (route.operators.includes('kmb') && route.operators.includes('ctb')) {
+                        etas = await processJointRoute(route);
+                    } else {
+                        etas = await processSingleRoute(route, route.operators[0]);
+                    }
+                    return { route, index, etas };
+                }));
+
+                container.innerHTML = '';
+                
+                routesData.forEach(item => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'route-card';
+
+                    // 判斷徽章顏色：城巴黃、九巴紅、聯營雙色漸層
+                    let badgeClass = 'bg-kmb'; // 預設九巴
+                    if (item.route.operators.includes('kmb') && item.route.operators.includes('ctb')) {
+                        badgeClass = 'bg-joint';
+                    } else if (item.route.operators.length === 1 && item.route.operators[0] === 'ctb') {
+                        badgeClass = 'bg-ctb';
+                    }
+
+                    cardDiv.innerHTML = `
+                        <div class="drag-handle" title="按住拖曳排序">
+                            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line>
+                                <line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>
+                            </svg>
+                        </div>
+                        <div class="bus-left">
+                            <div class="route-badge ${badgeClass}">${item.route.route}</div>
+                            <div class="route-info">
+                                <div class="destination">往 ${item.route.destinations}</div>
+                                <div class="station-name-sub">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>
+                                    </svg>
+                                    ${item.route.stopName}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="eta-list">
+                            ${generateEtaHTML(item.etas)}
+                        </div>
+                        <button class="delete-route-btn" onclick="deleteRoute(this)" title="刪除路線">×</button>
+                    `;
+                    container.appendChild(cardDiv);
+                });
+
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString('zh-HK', {hour: '2-digit', minute: '2-digit'});
+            } catch(e) {
+                console.error(e);
+                errorAlert.style.display = 'block';
+            }
+        }
+
+        async function manualRefresh() {
+            if (isLoading) return;
+            
+            if (isEditMode) {
+                toggleEditMode();
+                return;
+            }
+
+            isLoading = true;
+            const btn = document.getElementById('refresh-btn');
+            btn.disabled = true;
+
+            await renderBuses();
+            
+            resetAutoRefresh();
+            isLoading = false;
+            btn.disabled = false;
+        }
+
+        function resetAutoRefresh() {
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+            autoRefreshTimer = setInterval(manualRefresh, 60000); 
+        }
+
+        // ============================================================================
+        // 編輯、拖曳排序與刪除功能
+        // ============================================================================
+        
+        function toggleEditMode() {
+            if (savedRoutes.length === 0) {
+                alert("目前沒有路線可以編輯喔！請先新增路線。");
+                return;
+            }
+
+            isEditMode = !isEditMode;
+            const container = document.getElementById('bus-container');
+            const editBtn = document.getElementById('edit-btn');
+
+            if (isEditMode) {
+                container.classList.add('edit-mode');
+                editBtn.style.color = '#ce3043';
+                editBtn.style.background = '#fde8e8';
+                editBtn.style.borderColor = '#fde8e8';
+                clearInterval(autoRefreshTimer); 
+
+                if (typeof Sortable !== 'undefined') {
+                    sortableInstance = new Sortable(container, {
+                        handle: '.drag-handle', 
+                        animation: 150,         
+                        ghostClass: 'sortable-ghost', 
+                        onEnd: function (evt) {
+                            const movedItem = savedRoutes.splice(evt.oldIndex, 1)[0];
+                            savedRoutes.splice(evt.newIndex, 0, movedItem);
+                            localStorage.setItem('myBusRoutes_v2', JSON.stringify(savedRoutes)); 
+                        }
+                    });
+                }
+            } else {
+                container.classList.remove('edit-mode');
+                editBtn.style.color = '#333';
+                editBtn.style.background = '#fff';
+                editBtn.style.borderColor = '#ddd';
+                
+                if (sortableInstance) {
+                    sortableInstance.destroy();
+                    sortableInstance = null;
+                }
+                
+                manualRefresh();
+            }
+        }
+
+        function deleteRoute(btnElement) {
+            const card = btnElement.closest('.route-card');
+            const container = document.getElementById('bus-container');
+            const index = Array.from(container.children).indexOf(card);
+            
+            savedRoutes.splice(index, 1);
+            localStorage.setItem('myBusRoutes_v2', JSON.stringify(savedRoutes));
+            
+            card.remove();
+            
+            if (savedRoutes.length === 0) {
+                toggleEditMode();
+                container.innerHTML = '<div class="status-message">目前沒有儲存任何路線。<br>請點擊右上角的「＋」新增。</div>';
+            }
+        }
+
+        // ============================================================================
+        // 動態搜尋與新增路線邏輯
+        // ============================================================================
+        
+        let searchTimeout;
+        let activeSearchRouteData = null; 
+        
+        let kmbRoutesPromise = null;
+        let kmbStopsPromise = null;
+        let currentSearchResults = [];
+        let currentStopsResults = [];
+
+        function ensureKMBRoutesCache() {
+            if (!kmbRoutesPromise) {
+                kmbRoutesPromise = fetch('https://data.etabus.gov.hk/v1/transport/kmb/route/')
+                    .then(res => res.json())
+                    .then(data => data.data)
+                    .catch(err => {
+                        console.error("無法快取九巴路線資料", err);
+                        kmbRoutesPromise = null; 
+                        return null;
+                    });
+            }
+            return kmbRoutesPromise;
+        }
+
+        function ensureKMBStopsCache() {
+            if (!kmbStopsPromise) {
+                kmbStopsPromise = fetch('https://data.etabus.gov.hk/v1/transport/kmb/stop')
+                    .then(res => res.json())
+                    .then(data => {
+                        let dict = {};
+                        data.data.forEach(stop => { dict[stop.stop] = stop.name_tc; });
+                        return dict;
+                    })
+                    .catch(err => {
+                        console.error("無法快取九巴站點資料", err);
+                        kmbStopsPromise = null;
+                        return null;
+                    });
+            }
+            return kmbStopsPromise;
+        }
+
+        function openAddView() {
+            if (isEditMode) toggleEditMode(); 
+
+            document.getElementById('main-view').style.display = 'none';
+            document.getElementById('add-view').style.display = 'flex';
+            document.getElementById('route-input').value = '';
+            document.getElementById('route-input').focus();
+            document.getElementById('search-results').innerHTML = '<div class="empty-state">輸入路線號碼後點擊「搜尋」</div>';
+            document.getElementById('add-view-title').innerText = '新增路線';
+            
+            ensureKMBRoutesCache();
+        }
+
+        function closeAddView() {
+            document.getElementById('add-view').style.display = 'none';
+            document.getElementById('main-view').style.display = 'block';
+        }
+
+        function debounceSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(performSearch, 600);
+        }
+
+        async function performSearch() {
+            const query = document.getElementById('route-input').value.trim().toUpperCase();
+            const resultsArea = document.getElementById('search-results');
+            document.getElementById('add-view-title').innerText = '新增路線';
+
+            if (!query) {
+                resultsArea.innerHTML = '<div class="empty-state">輸入路線號碼後點擊「搜尋」</div>';
+                return;
+            }
+
+            resultsArea.innerHTML = '<div class="empty-state">正在連線至政府資料庫... ⏳</div>';
+
+            try {
+                let results = [];
+
+                const kmbRoutes = await ensureKMBRoutesCache();
+                if (kmbRoutes) {
+                    const kmbMatches = kmbRoutes.filter(r => r.route === query && r.service_type === "1");
+                    kmbMatches.forEach(r => {
+                        results.push({
+                            operator: 'kmb', route: r.route, 
+                            bound: r.bound === 'I' ? 'inbound' : 'outbound', dir: r.bound,
+                            orig: r.orig_tc, dest: r.dest_tc, opName: '九巴'
+                        });
+                    });
+                }
+
+                try {
+                    const ctbRes = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/route/CTB/${query}`).then(r => r.json());
+                    if (ctbRes && ctbRes.data && ctbRes.data.route) {
+                        const r = ctbRes.data;
+                        results.push({ operator: 'ctb', route: r.route, bound: 'outbound', dir: 'O', orig: r.orig_tc, dest: r.dest_tc, opName: '城巴' });
+                        results.push({ operator: 'ctb', route: r.route, bound: 'inbound', dir: 'I', orig: r.dest_tc, dest: r.orig_tc, opName: '城巴' });
+                    }
+                } catch (ctbError) {}
+
+                if (results.length === 0) {
+                    resultsArea.innerHTML = '<div class="empty-state">找不到該路線，請檢查是否有錯字。</div>';
+                    return;
+                }
+
+                currentSearchResults = results;
+                resultsArea.innerHTML = results.map((item, idx) => `
+                    <div class="result-item" onclick="selectRouteDirection(${idx})">
+                        <div class="result-item-header">
+                            <span class="result-route-num">${item.route}</span>
+                            <span class="result-dest">往 ${item.dest}</span>
+                        </div>
+                        <div class="result-meta">
+                            <span>營運：${item.opName}</span>
+                            <span>(起點：${item.orig})</span>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (e) {
+                console.error("搜尋發生嚴重錯誤", e);
+                resultsArea.innerHTML = '<div class="empty-state">搜尋發生異常，請重試。</div>';
+            }
+        }
+
+        async function selectRouteDirection(index) {
+            const routeData = currentSearchResults[index];
+            activeSearchRouteData = routeData;
+
+            const resultsArea = document.getElementById('search-results');
+            document.getElementById('add-view-title').innerText = `${routeData.route} 沿途車站`;
+            resultsArea.innerHTML = '<div class="empty-state">載入全線車站中... ⏳</div>';
+
+            try {
+                let stops = [];
+                if (routeData.operator === 'kmb') {
+                    const dict = await ensureKMBStopsCache();
+                    const res = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/route-stop/${routeData.route}/${routeData.bound}/1`);
+                    const data = await res.json();
+                    
+                    if(!data || !data.data) throw new Error("無效的九巴資料");
+                    
+                    stops = data.data.map(s => ({
+                        stopId: s.stop,
+                        name: dict ? (dict[s.stop] || '未知車站') : '未知車站',
+                        seq: s.seq
+                    }));
+                } else if (routeData.operator === 'ctb') {
+                    const res = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/route-stop/CTB/${routeData.route}/${routeData.bound}`);
+                    const data = await res.json();
+                    
+                    if(!data || !data.data) throw new Error("無效的城巴資料");
+                    
+                    const stopsRaw = data.data;
+                    const namePromises = stopsRaw.map(async s => {
+                        try {
+                            const stopRes = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/stop/${s.stop}`);
+                            const stopData = await stopRes.json();
+                            return { stopId: s.stop, name: stopData.data.name_tc, seq: s.seq };
+                        } catch(e) { return { stopId: s.stop, name: '未知車站', seq: s.seq }; }
+                    });
+                    stops = await Promise.all(namePromises);
+                }
+
+                currentStopsResults = stops;
+                resultsArea.innerHTML = stops.map((stop, idx) => `
+                    <div class="result-item" onclick="openSaveModal(${idx})">
+                        <div class="result-item-header">
+                            <span style="color:#aaa; font-size: 13px; width: 24px;">${stop.seq}</span>
+                            <span class="result-dest" style="font-size: 16px;">${stop.name}</span>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch(e) {
+                console.error("獲取車站失敗:", e);
+                resultsArea.innerHTML = '<div class="empty-state">獲取車站失敗，網路可能不穩定。</div>';
+            }
+        }
+
+        function openSaveModal(stopIndex) {
+            const stop = currentStopsResults[stopIndex];
+            const data = activeSearchRouteData;
+
+            const combinedData = { ...data, stopId: stop.stopId, stopName: stop.name };
+            window.pendingSaveData = combinedData;
+
+            const modal = document.getElementById('save-modal');
+            document.getElementById('save-modal-info').innerHTML = 
+                `路線：<strong>${combinedData.route}</strong> 往 ${combinedData.dest}<br>上車點：<strong>${combinedData.stopName}</strong>`;
+            
+            modal.style.display = 'flex';
+        }
+
+        function closeSaveModal() {
+            document.getElementById('save-modal').style.display = 'none';
+        }
+
+        function confirmSaveRoute() {
+            const data = window.pendingSaveData;
+            
+            if(!data) {
+                alert("儲存失敗，請重試");
+                return;
+            }
+
+            const newRoute = {
+                stopName: data.stopName, 
+                route: data.route,
+                operators: [data.operator],
+                destinations: data.dest
+            };
+
+            if (data.operator === 'kmb') {
+                newRoute.kmb_stop = data.stopId;
+                newRoute.kmb_dir = data.dir;
+            } else {
+                newRoute.ctb_stop = data.stopId;
+                newRoute.ctb_dir = data.dir;
+            }
+
+            savedRoutes.push(newRoute);
+            saveData(true);
+            closeSaveModal();
+            closeAddView();
+        }
+
+        // ============================================================================
+        // 初始化
+        // ============================================================================
+        window.addEventListener('load', () => {
+            loadData();
+            manualRefresh();
+        });
+
+    </script>
+</body>
+</html>
