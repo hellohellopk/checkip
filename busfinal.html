@@ -165,20 +165,55 @@
         .btn-cancel { padding: 8px 16px; background: #f0f0f0; border: none; border-radius: 6px; cursor: pointer; color: #333; font-weight: 500;}
         .btn-confirm { padding: 8px 16px; background: #ce3043; border: none; border-radius: 6px; cursor: pointer; color: #fff; font-weight: 500;}
 
-        /* 地圖專用 Modal */
+        /* ==================================================================
+           地圖與車站列表 雙重視窗 (Split View Modal)
+           ================================================================== */
+        #map-modal { align-items: flex-end; }
         .map-modal-content {
-            background: #fff; width: 95%; max-width: 500px; height: 80vh;
-            border-radius: 16px; padding: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            background: #fff; width: 100%; max-width: 600px; height: 92vh;
+            border-radius: 16px 16px 0 0; padding: 16px 0 0 0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
             display: flex; flex-direction: column;
+            animation: slideUp 0.3s ease-out;
         }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
-        .map-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .map-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 16px; }
         .map-controls { display: flex; align-items: center; gap: 8px; }
         .map-style-select { padding: 4px 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 13px; outline: none; background: #f9f9f9; }
-
-        /* 隱藏 Leaflet Logo */
         .leaflet-control-attribution { display: none !important; }
 
+        /* 車站時間軸列表設計 */
+        .stop-list-container { position: relative; padding: 0 16px 20px 16px; }
+        .stop-list-container::before {
+            content: ''; position: absolute; top: 20px; bottom: 20px; left: 31px; 
+            width: 4px; transform: translateX(-50%); background: var(--route-color); z-index: 1; opacity: 0.3;
+        }
+        .stop-item { display: flex; align-items: flex-start; padding: 12px 0; cursor: pointer; position: relative; z-index: 2; }
+        .stop-dot {
+            width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 3px solid var(--route-color);
+            margin-right: 16px; margin-left: 8px; margin-top: 4px; flex-shrink: 0; transition: all 0.2s; position: relative; z-index: 3;
+        }
+        .stop-item.selected .stop-dot {
+            background: var(--route-color); transform: scale(1.4);
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.8), 0 0 0 5px var(--route-color);
+        }
+        .stop-item .stop-info {
+            flex: 1; border-bottom: 1px solid #f0f0f0; padding-bottom: 12px;
+            display: flex; align-items: center; justify-content: space-between; transform: translateY(-2px);
+        }
+        .stop-item:last-child .stop-info { border-bottom: none; }
+        
+        .stop-title-wrap { display: flex; align-items: center; gap: 10px; }
+        .stop-seq { font-size: 14px; color: #888; font-weight: 600; width: 24px; text-align: center; flex-shrink:0; }
+        .stop-name { font-size: 16px; color: #333; font-weight: 500; transition: color 0.2s; }
+        .stop-item.selected .stop-name { font-weight: 700; color: var(--route-color); }
+        
+        .stop-eta-container { text-align: right; min-width: 65px; display: flex; flex-direction: column; gap: 2px; }
+
+        /* ==================================================================
+           新增路線頁面 (Overlay)
+           ================================================================== */
         #add-view {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #fafafa; z-index: 1000; display: none; flex-direction: column; overflow: hidden;
@@ -232,13 +267,12 @@
         </div>
     </div>
 
-    <!-- ==================== Leaflet 地圖 Modal ==================== -->
+    <!-- ==================== Leaflet 地圖 Modal (地圖 + 列表 雙視窗) ==================== -->
     <div class="modal-overlay" id="map-modal">
         <div class="map-modal-content">
             <div class="map-header">
                 <span id="map-title" style="font-weight: 600; font-size: 16px;">🗺️ 路線規劃</span>
                 <div class="map-controls">
-                    <!-- 地圖風格切換選單 (預設選中 OSM) -->
                     <select class="map-style-select" id="map-style-selector" onchange="changeMapStyle(this.value)">
                         <option value="voyager">導航風格</option>
                         <option value="satellite">衛星空照</option>
@@ -249,12 +283,17 @@
                 </div>
             </div>
             
-            <div id="map-loading" style="display:none; flex: 1; text-align:center; padding-top: 50px; color:#888; font-size: 14px;">
+            <div id="map-loading" style="flex: 1; text-align:center; padding-top: 50px; color:#888; font-size: 14px;">
                 正在繪製全線車站與路線... ⏳
             </div>
 
-            <!-- Leaflet 地圖容器 -->
-            <div id="map-container" style="flex: 1; border-radius: 8px; background: #e5e3df; z-index: 1;"></div>
+            <!-- 分割視窗 -->
+            <div id="map-split-container" style="display:none; flex: 1; flex-direction: column; overflow: hidden;">
+                <!-- 上半：地圖 -->
+                <div id="map-container" style="flex: 0 0 42%; width: 100%; border-bottom: 1px solid #ddd; z-index: 1;"></div>
+                <!-- 下半：車站時間軸列表 -->
+                <div id="map-stop-list" style="flex: 1; overflow-y: auto; background: #fff; position: relative;"></div>
+            </div>
         </div>
     </div>
 
@@ -290,10 +329,9 @@
 
     <script>
         // ============================================================================
-        // 核心資料管理 (已清除預設資料)
+        // 核心資料管理
         // ============================================================================
         const defaultRoutes = [];
-
         let savedRoutes = [];
         let isLoading = false;
         let autoRefreshTimer = null;
@@ -301,7 +339,6 @@
         let sortableInstance = null;
 
         function loadData() {
-            // 變更存儲 Key 至 v3，確保不會載入到舊的預設資料，給使用者乾淨的畫面
             const v3Saved = localStorage.getItem('myBusRoutes_v3');
             if (v3Saved) {
                 try { savedRoutes = JSON.parse(v3Saved); return; } catch (e) {}
@@ -340,7 +377,7 @@
         }
 
         // ============================================================================
-        // Leaflet 地圖核心控制 (多重底圖支援)
+        // Leaflet 地圖核心與列表雙向連動 (Map & List Sync + ETA Fetch)
         // ============================================================================
         
         const mapTiles = {
@@ -354,7 +391,6 @@
         function changeMapStyle(styleKey) {
             if (!window.routeMap) return;
             if (currentTileLayer) window.routeMap.removeLayer(currentTileLayer);
-            
             const maxZoomConfig = styleKey === 'satellite' ? 18 : 19;
             currentTileLayer = L.tileLayer(mapTiles[styleKey], { maxZoom: maxZoomConfig }).addTo(window.routeMap);
         }
@@ -365,18 +401,99 @@
             try {
                 const res = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/stop/${stopId}`);
                 const data = await res.json();
-                ctbStopsCache[stopId] = data.data;
-                return data.data;
+                ctbStopsCache[stopId] = data.data; return data.data;
             } catch(e) { return null; }
+        }
+
+        window.routeMarkers = {};
+        window.currentMapRouteContext = null;
+
+        window.clickStopInList = function(seq, lat, lng, stopId) {
+            selectStopInList(seq);
+            const marker = window.routeMarkers[seq];
+            if (marker && window.routeMap) {
+                window.routeMap.setView([lat, lng], 18, { animate: true });
+                marker.openPopup();
+            }
+            fetchStopETAInMap(seq, stopId); 
+        };
+
+        function selectStopInList(seq) {
+            document.querySelectorAll('.stop-item').forEach(el => el.classList.remove('selected'));
+            const target = document.getElementById(`stop-item-${seq}`);
+            if (target) {
+                target.classList.add('selected');
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        async function fetchStopETAInMap(seq, stopId) {
+            document.querySelectorAll('.stop-eta-container').forEach(el => el.innerHTML = '');
+            const etaContainer = document.getElementById(`stop-eta-${seq}`);
+            if (!etaContainer) return;
+            etaContainer.innerHTML = '<span style="color:#888; font-size:12px;">載入中...</span>';
+
+            const routeObj = window.currentMapRouteContext;
+            if (!routeObj) return;
+
+            let operator = routeObj.operators[0]; 
+            let route = routeObj.route;
+            let isTargetStop = false;
+            if (operator === 'kmb' && stopId === routeObj.kmb_stop) isTargetStop = true;
+            if (operator === 'ctb' && stopId === routeObj.ctb_stop) isTargetStop = true;
+
+            let allETA = [];
+            try {
+                if (isTargetStop && routeObj.operators.includes('kmb') && routeObj.operators.includes('ctb')) {
+                    const [kmbData, ctbData] = await Promise.all([
+                        fetchETAAPI(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${routeObj.kmb_stop}/${route}/1`),
+                        fetchETAAPI(`https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${routeObj.ctb_stop}/${route}`)
+                    ]);
+                    kmbData.filter(b => b.dir === routeObj.kmb_dir).slice(0, 3).forEach(b => { if (b.eta) allETA.push({ eta: b.eta }); });
+                    ctbData.filter(b => b.dir === routeObj.ctb_dir).slice(0, 3).forEach(b => {
+                        if (b.eta && !(b.rmk_tc || '').includes('九巴時段')) allETA.push({ eta: b.eta });
+                    });
+                } else {
+                    let dir = operator === 'kmb' ? routeObj.kmb_dir : routeObj.ctb_dir;
+                    if (operator === 'kmb') {
+                        const data = await fetchETAAPI(`https://data.etabus.gov.hk/v1/transport/kmb/eta/${stopId}/${route}/1`);
+                        allETA = data.filter(bus => bus.dir === dir).map(bus => ({ eta: bus.eta }));
+                    } else {
+                        const data = await fetchETAAPI(`https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${stopId}/${route}`);
+                        allETA = data.filter(bus => bus.dir === dir).map(bus => ({ eta: bus.eta }));
+                    }
+                }
+                
+                allETA.sort((a, b) => new Date(a.eta) - new Date(b.eta));
+                let etas = formatETAs(allETA);
+
+                if (etas.length === 0) {
+                    etaContainer.innerHTML = '<span style="color:#aaa; font-size:13px;">暫無班次</span>';
+                } else {
+                    let html = '';
+                    etas.forEach((eta, i) => {
+                        if (i === 0) {
+                            let text = eta.min <= 2 ? `<span class="arriving">${eta.min===0 ? '即將到達' : eta.min + ' 分鐘'}</span>` : `<strong>${eta.min}</strong> 分鐘`;
+                            html += `<div class="eta-primary">${text}</div>`;
+                        } else {
+                            html += `<div class="eta-secondary"><strong>${eta.min}</strong> 分鐘</div>`;
+                        }
+                    });
+                    etaContainer.innerHTML = html;
+                }
+            } catch (e) {
+                etaContainer.innerHTML = '<span style="color:#aaa; font-size:12px;">載入失敗</span>';
+            }
         }
 
         async function openMapModal(routeObj) {
             if (isEditMode) return;
+            window.currentMapRouteContext = routeObj; 
             const modal = document.getElementById('map-modal');
-            const mapContainer = document.getElementById('map-container');
+            const mapContainer = document.getElementById('map-split-container');
             const loading = document.getElementById('map-loading');
             
-            document.getElementById('map-title').innerText = `${routeObj.route} 沿途車站地圖`;
+            document.getElementById('map-title').innerText = `${routeObj.route} 沿途車站`;
             modal.style.display = 'flex';
             mapContainer.style.display = 'none';
             loading.style.display = 'block';
@@ -392,7 +509,6 @@
                     const dict = await ensureKMBStopsCache();
                     const res = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/route-stop/${routeObj.route}/${bound}/1`);
                     const data = await res.json();
-                    
                     stops = data.data.map(s => {
                         let info = dict ? (dict[s.stop] || {}) : {};
                         return { id: s.stop, name: info.name, lat: info.lat, lng: info.lng, seq: s.seq };
@@ -405,31 +521,34 @@
                         if(stopData) return { id: s.stop, name: stopData.name_tc, lat: stopData.lat, lng: stopData.long, seq: s.seq };
                         return null;
                     });
-                    const rawStops = await Promise.all(namePromises);
-                    stops = rawStops.filter(s => s !== null);
+                    stops = (await Promise.all(namePromises)).filter(s => s !== null);
                 }
 
                 stops = stops.filter(s => s.lat && s.lng);
 
                 loading.style.display = 'none';
-                mapContainer.style.display = 'block';
+                mapContainer.style.display = 'flex';
 
                 if (window.routeMap) window.routeMap.remove();
                 window.routeMap = L.map('map-container');
-                
                 const selectedStyle = document.getElementById('map-style-selector').value;
                 changeMapStyle(selectedStyle);
 
                 let latlngs = [];
+                let primaryColor = operator === 'ctb' ? '#fccc0a' : '#ce3043';
+                window.routeMarkers = {}; 
+
+                let listHtml = `<div class="stop-list-container" style="--route-color: ${primaryColor}">`;
+                let targetSeq = null;
                 let targetMarker = null;
-                let primaryColor = operator === 'ctb' ? '#d4aa00' : '#ce3043';
 
                 stops.forEach(s => {
                     let latlng = [parseFloat(s.lat), parseFloat(s.lng)];
                     latlngs.push(latlng);
 
                     let isTarget = (s.id === targetStopId);
-                    
+                    if (isTarget) targetSeq = s.seq;
+
                     let markerHtml = isTarget 
                         ? `<div style="background-color:${primaryColor}; width:18px; height:18px; border-radius:50%; border:3px solid white; box-shadow: 0 0 6px rgba(0,0,0,0.5);"></div>`
                         : `<div style="background-color:#fff; width:10px; height:10px; border-radius:50%; border:2px solid ${primaryColor};"></div>`;
@@ -442,17 +561,47 @@
                         zIndexOffset: isTarget ? 1000 : 0
                     }).bindPopup(`<b style="font-size:14px; color:#111;">${s.seq}. ${s.name}</b>`);
                     
+                    marker.on('click', () => {
+                        window.clickStopInList(s.seq, s.lat, s.lng, s.id);
+                    });
+
                     marker.addTo(window.routeMap);
+                    window.routeMarkers[s.seq] = marker;
                     if (isTarget) targetMarker = marker;
+
+                    listHtml += `
+                        <div class="stop-item ${isTarget ? 'selected' : ''}" id="stop-item-${s.seq}" onclick="window.clickStopInList(${s.seq}, ${s.lat}, ${s.lng}, '${s.id}')">
+                            <div class="stop-dot"></div>
+                            <div class="stop-info">
+                                <div class="stop-title-wrap">
+                                    <div class="stop-seq">${s.seq}</div>
+                                    <div class="stop-name">${s.name}</div>
+                                </div>
+                                <div class="stop-eta-container" id="stop-eta-${s.seq}"></div>
+                            </div>
+                        </div>
+                    `;
                 });
+                
+                listHtml += `</div>`;
+                document.getElementById('map-stop-list').innerHTML = listHtml;
 
                 if (latlngs.length > 0) {
-                    let polyline = L.polyline(latlngs, {color: primaryColor, weight: 4, opacity: 0.8}).addTo(window.routeMap);
-                    window.routeMap.fitBounds(polyline.getBounds(), { padding: [30, 30] });
-                    if (targetMarker) targetMarker.openPopup();
+                    L.polyline(latlngs, {color: primaryColor, weight: 4, opacity: 0.8}).addTo(window.routeMap);
+                    window.routeMap.fitBounds(L.polyline(latlngs).getBounds(), { padding: [30, 30] });
                 }
 
-                setTimeout(() => { window.routeMap.invalidateSize(); }, 200);
+                setTimeout(() => { 
+                    window.routeMap.invalidateSize(); 
+                    if (targetSeq) {
+                        selectStopInList(targetSeq);
+                        if (targetMarker) {
+                            window.routeMap.setView(targetMarker.getLatLng(), 18);
+                            targetMarker.openPopup();
+                        }
+                        fetchStopETAInMap(targetSeq, targetStopId);
+                    }
+                }, 300);
 
             } catch(e) {
                 console.error(e);
@@ -465,7 +614,7 @@
         }
 
         // ============================================================================
-        // ETA 獲取與渲染
+        // 主畫面 ETA 獲取與渲染
         // ============================================================================
 
         async function fetchETAAPI(url) {
@@ -627,7 +776,7 @@
         }
 
         let searchTimeout, activeSearchRouteData = null;
-        let kmbRoutesPromise = null, kmbStopsPromise = null;
+        let kmbRoutesPromise = null, kmbStopsPromise = null, ctbRoutesPromise = null;
         let currentSearchResults = [], currentStopsResults = [];
 
         function ensureKMBRoutesCache() {
@@ -635,6 +784,13 @@
                 kmbRoutesPromise = fetch('https://data.etabus.gov.hk/v1/transport/kmb/route/')
                     .then(res => res.json()).then(data => data.data).catch(err => null);
             } return kmbRoutesPromise;
+        }
+
+        function ensureCTBRoutesCache() {
+            if (!ctbRoutesPromise) {
+                ctbRoutesPromise = fetch('https://rt.data.gov.hk/v2/transport/citybus/route/CTB')
+                    .then(res => res.json()).then(data => data.data).catch(err => null);
+            } return ctbRoutesPromise;
         }
 
         function ensureKMBStopsCache() {
@@ -656,6 +812,7 @@
             document.getElementById('route-input').value = '';
             document.getElementById('search-results').innerHTML = '<div class="empty-state">輸入路線號碼後點擊「搜尋」</div>';
             ensureKMBRoutesCache();
+            ensureCTBRoutesCache();
         }
 
         function closeAddView() {
@@ -667,6 +824,7 @@
             clearTimeout(searchTimeout); searchTimeout = setTimeout(performSearch, 600);
         }
 
+        // 模糊搜尋核心優化 (Partial Match & Sorting)
         async function performSearch() {
             const query = document.getElementById('route-input').value.trim().toUpperCase();
             const resultsArea = document.getElementById('search-results');
@@ -675,21 +833,42 @@
 
             try {
                 let results = [];
-                const kmbRoutes = await ensureKMBRoutesCache();
+                const [kmbRoutes, ctbRoutes] = await Promise.all([ensureKMBRoutesCache(), ensureCTBRoutesCache()]);
+                
+                // 1. 九巴模糊比對
                 if (kmbRoutes) {
-                    kmbRoutes.filter(r => r.route === query && r.service_type === "1").forEach(r => {
+                    kmbRoutes.filter(r => r.route.includes(query) && r.service_type === "1").forEach(r => {
                         results.push({ operator: 'kmb', route: r.route, bound: r.bound === 'I' ? 'inbound' : 'outbound', dir: r.bound, orig: r.orig_tc, dest: r.dest_tc, opName: '九巴' });
                     });
                 }
-                try {
-                    const ctbRes = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/route/CTB/${query}`).then(r => r.json());
-                    if (ctbRes?.data?.route) {
-                        results.push({ operator: 'ctb', route: ctbRes.data.route, bound: 'outbound', dir: 'O', orig: ctbRes.data.orig_tc, dest: ctbRes.data.dest_tc, opName: '城巴' });
-                        results.push({ operator: 'ctb', route: ctbRes.data.route, bound: 'inbound', dir: 'I', orig: ctbRes.data.dest_tc, dest: ctbRes.data.orig_tc, opName: '城巴' });
-                    }
-                } catch (e) {}
+                
+                // 2. 城巴模糊比對
+                if (ctbRoutes) {
+                    ctbRoutes.filter(r => r.route.includes(query)).forEach(r => {
+                        results.push({ operator: 'ctb', route: r.route, bound: 'outbound', dir: 'O', orig: r.orig_tc, dest: r.dest_tc, opName: '城巴' });
+                        results.push({ operator: 'ctb', route: r.route, bound: 'inbound', dir: 'I', orig: r.dest_tc, dest: r.orig_tc, opName: '城巴' });
+                    });
+                }
 
-                if (results.length === 0) return resultsArea.innerHTML = '<div class="empty-state">找不到該路線，請檢查是否有錯字。</div>';
+                if (results.length === 0) return resultsArea.innerHTML = '<div class="empty-state">找不到相關路線，請檢查是否有錯字。</div>';
+                
+                // 3. 智能排序 (完全符合優先 > 開頭符合 > 數字大小)
+                results.sort((a, b) => {
+                    const aExact = a.route === query;
+                    const bExact = b.route === query;
+                    if (aExact && !bExact) return -1;
+                    if (!aExact && bExact) return 1;
+
+                    const aStarts = a.route.startsWith(query);
+                    const bStarts = b.route.startsWith(query);
+                    if (aStarts && !bStarts) return -1;
+                    if (!aStarts && bStarts) return 1;
+
+                    return a.route.localeCompare(b.route, undefined, {numeric: true, sensitivity: 'base'});
+                });
+
+                // 4. 限制顯示前 80 筆，避免渲染卡頓
+                results = results.slice(0, 80);
                 
                 currentSearchResults = results;
                 resultsArea.innerHTML = results.map((item, idx) => `
