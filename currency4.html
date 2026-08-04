@@ -2,497 +2,636 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FX</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FX Terminal Pro - Auto Save</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Mono:wght@400;500;600&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-        body { font-family:'Inter',-apple-system,sans-serif; background:#F2F2F7; color:#1C1C1E; min-height:100vh; }
-        .app { max-width:480px; margin:0 auto; padding:12px 12px 80px; }
+        :root {
+            --bg-color: #ffffff;
+            --terminal-bg: #ffffff;
+            --primary-green: #1b1f23;
+            --accent-blue: #0366d6;
+            --warn-yellow: #dbab09;
+            --error-red: #d73a49;
+            --text-gray: #586069;
+            --border-color: #e8e8e8;
+        }
 
-        .top-bar { display:flex; justify-content:space-between; align-items:center; padding:10px 0 14px; }
-        .top-bar-title { font-size:20px; font-weight:700; }
-        .api-pill { padding:5px 10px; background:#FFF; border:1px solid #E5E5EA; border-radius:16px; font-size:10px; color:#636366; cursor:pointer; font-family:'Inter',sans-serif; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-        .update-text { font-size:10px; color:#8E8E93; text-align:center; padding:2px 0 12px; }
+        body {
+            font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+            background: var(--bg-color);
+            color: var(--primary-green);
+            padding: 0;
+            overflow-x: hidden;
+        }
 
-        .base-card { background:#FFF; border:2px solid #007AFF; border-radius:14px; padding:12px 14px; display:flex; align-items:center; margin-bottom:6px; box-shadow:0 2px 10px rgba(0,122,255,0.10); }
+        .terminal-window {
+            width: 100%;
+            min-height: 100vh;
+            background: var(--terminal-bg);
+            border-radius: 0;
+            display: flex;
+            flex-direction: column;
+        }
 
-        .base-currency-btn { display:flex; align-items:center; gap:4px; background:transparent; border:none; cursor:pointer; padding:2px 6px 2px 0; border-radius:8px; transition:background 0.15s; }
-        .base-currency-btn:hover { background:#F2F2F7; }
-        .base-currency-btn .code { font-size:16px; font-weight:600; color:#1C1C1E; }
-        .base-currency-btn .chevron { font-size:11px; color:#8E8E93; }
+        .terminal-header {
+            background: #f6f6f6;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
 
-        .currency-card { background:#FFF; border:1px solid #E5E5EA; border-radius:14px; padding:10px 14px; display:flex; align-items:center; margin-bottom:6px; position:relative; transition:background 0.15s; }
-        .currency-card:active { background:#F2F2F7; }
-        .currency-card.unsupported { opacity:0.45; }
+        .terminal-buttons { display: flex; gap: 8px; margin-right: 16px; }
+        .terminal-btn { width: 12px; height: 12px; border-radius: 50%; }
+        .btn-red { background: var(--error-red); }
+        .btn-yellow { background: #FFBD2E; }
+        .btn-green { background: #27C93F; }
+        .terminal-title { font-size: 13px; color: var(--text-gray); font-weight: 500; margin: 0 auto; }
 
-        .delete-btn { position:absolute; left:10px; top:50%; transform:translateY(-50%); width:22px; height:22px; background:#FF3B30; border-radius:50%; border:none; color:#FFF; font-size:15px; line-height:22px; text-align:center; cursor:pointer; display:none; font-weight:700; z-index:2; }
-        .currency-card.editing { padding-left:42px; }
-        .currency-card.editing .delete-btn { display:block; }
+        .terminal-body { padding: 0; flex: 1; }
 
-        .flag-wrap { width:34px; height:34px; border-radius:50%; overflow:hidden; flex-shrink:0; margin-right:10px; border:1px solid #E5E5EA; background:#F2F2F7; }
-        .flag-wrap img { width:100%; height:100%; object-fit:cover; }
-        .flag-wrap.base { width:38px; height:38px; }
+        .header-content { padding: 16px 16px 8px 16px; }
+        .update-time { font-size: 11px; color: #999; margin-bottom: 12px; }
 
-        .currency-code { font-size:15px; font-weight:600; color:#1C1C1E; }
-        .currency-rate { font-size:10px; color:#8E8E93; margin-top:1px; }
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin: 0 16px 16px 16px;
+            flex-wrap: wrap;
+        }
 
-        .amount-section { margin-left:auto; display:flex; align-items:center; gap:6px; }
-        .amount-input { font-size:18px; font-weight:700; color:#1C1C1E; text-align:right; border:none; outline:none; background:transparent; font-family:'Inter',sans-serif; width:150px; max-width:52vw; }
-        .amount-input.base { font-size:20px; width:160px; }
-        .na-label { font-size:13px; color:#C7C7CC; font-style:italic; margin-left:auto; }
+        .btn {
+            padding: 8px 12px;
+            border: 1px solid var(--primary-green);
+            background: transparent;
+            color: var(--primary-green);
+            font-family: inherit;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        .btn.editing { background: var(--error-red); color: white; border-color: var(--error-red); }
 
-        .bottom-bar { position:fixed; bottom:0; left:0; right:0; background:rgba(242,242,247,0.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); padding:10px 16px 24px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #E5E5EA; }
-        .add-btn { background:transparent; border:none; font-size:15px; font-weight:500; color:#007AFF; cursor:pointer; font-family:'Inter',sans-serif; }
-        .add-btn:disabled { opacity:0.4; cursor:not-allowed; }
-        .bottom-right { display:flex; align-items:center; gap:10px; }
-        .mid-text { font-size:12px; color:#8E8E93; }
-        .edit-btn { background:transparent; border:none; font-size:14px; font-weight:500; color:#007AFF; cursor:pointer; font-family:'Inter',sans-serif; }
-        .edit-btn.editing { color:#FF3B30; }
+        .api-selector {
+            background: #f6f6f6;
+            color: var(--accent-blue);
+            border: 1px solid var(--accent-blue);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 11px;
+            flex: 1;
+        }
 
-        .toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:rgba(28,28,30,0.85); color:#FFF; padding:7px 18px; border-radius:18px; font-size:12px; opacity:0; transition:opacity 0.3s; pointer-events:none; z-index:999; white-space:nowrap; }
-        .toast.show { opacity:1; }
+        .currency-list-container { border-top: none; padding: 0 12px 12px; display: flex; flex-direction: column; gap: 6px; position: relative; }
 
-        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:300; align-items:flex-end; justify-content:center; }
-        .modal.active { display:flex; }
-        .modal-sheet { background:#FFF; border-radius:20px 20px 0 0; width:100%; max-width:480px; max-height:80vh; overflow:hidden; display:flex; flex-direction:column; }
-        .modal-header { padding:14px 18px 10px; border-bottom:1px solid #E5E5EA; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
-        .modal-title { font-size:16px; font-weight:600; }
-        .modal-cancel { background:none; border:none; font-size:15px; color:#007AFF; cursor:pointer; font-family:'Inter',sans-serif; }
-        .search-wrap { padding:10px 14px; flex-shrink:0; border-bottom:1px solid #E5E5EA; }
-        .search-input { width:100%; padding:8px 12px; background:#F2F2F7; border:none; border-radius:10px; font-size:14px; font-family:'Inter',sans-serif; outline:none; }
-        .list-scroll { overflow-y:auto; flex:1; }
-        .opt { padding:11px 14px; border-bottom:1px solid #F2F2F7; cursor:pointer; display:flex; align-items:center; gap:10px; }
-        .opt:hover { background:#F2F2F7; }
-        .opt img { width:32px; height:32px; border-radius:50%; border:1px solid #E5E5EA; flex-shrink:0; }
-        .opt-code { font-size:14px; font-weight:600; }
-        .opt-name { font-size:11px; color:#8E8E93; margin-top:1px; }
-        .no-results { padding:36px 20px; text-align:center; color:#8E8E93; font-size:13px; }
-        .opt .check { margin-left:auto; color:#007AFF; font-size:16px; display:none; }
-        .opt.selected .check { display:block; }
+        .currency-card {
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 8px;
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            position: relative;
+            width: 100%;
+            height: 40px;
+            transition: background 0.2s, box-shadow 0.2s;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+
+        .currency-card.dragging {
+            opacity: 0.85;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+            z-index: 50;
+            position: relative;
+        }
+
+        .currency-card.editing { padding-left: 68px; }
+
+        .card-actions-left {
+            position: absolute;
+            left: 8px;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            z-index: 10;
+        }
+        .currency-card.editing .card-actions-left { display: flex; }
+
+        .drag-handle {
+            color: rgba(0,0,0,0.55);
+            font-size: 18px;
+            cursor: grab;
+            padding: 4px;
+            touch-action: none;
+            line-height: 1;
+        }
+        .drag-handle:active { cursor: grabbing; }
+
+        .delete-btn {
+            background: var(--error-red);
+            color: white;
+            border: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 11px;
+            touch-action: none;
+        }
+
+        .flag-icon {
+            width: 22px; height: 22px; border-radius: 50%;
+            margin-right: 10px; overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.15); flex-shrink: 0;
+            position: relative; z-index: 1;
+        }
+        .flag-icon img { width: 100%; height: 100%; object-fit: cover; }
+
+        .currency-info { flex: 1.2; min-width: 0; position: relative; z-index: 1; display: flex; align-items: baseline; gap: 8px; overflow: hidden; }
+        .currency-code { font-size: 17px; font-weight: bold; color: #000000; line-height: 1.2; flex-shrink: 0; }
+        .currency-name { display: none; }
+
+        .currency-watermark {
+            font-size: 9.5px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            opacity: 0.45;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+            pointer-events: none;
+        }
+
+        .currency-value { flex: 1.5; text-align: right; padding-left: 8px; display: flex; flex-direction: column; align-items: flex-end; position: relative; z-index: 1; }
+        .amount-input {
+            width: 100%; background: transparent; border: none; color: #000000;
+            font-size: 17px; font-weight: bold; font-family: inherit; text-align: right; outline: none;
+        }
+        .rate { display: none; }
+
+        /* Modals */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content { background: transparent; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .calc-container { width: 340px; background: #ffffff; padding: 24px; border-radius: 20px; border: 1px solid var(--border-color); box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
+        .calc-header { text-align: right; padding: 16px; background: #f6f6f6; border-radius: 12px;
+            margin-bottom: 20px; border: 1px solid var(--border-color); height: 80px; display: flex; flex-direction: column; justify-content: flex-end; }
+        .calc-display { font-size: 32px; color: var(--warn-yellow); font-weight: bold; }
+        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .calc-btn { background: #f6f6f6; border: 0; color: var(--primary-green); height: 60px; font-size: 20px; border-radius: 12px; cursor: pointer; }
+        .calc-btn.op { color: var(--accent-blue); background: #eef4fc; }
+        .calc-btn.done { background: #2ea44f; color: white; grid-column: span 2; }
+        .currency-option { padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; cursor: pointer; }
+        .currency-option img { width: 32px; height: 32px; border-radius: 50%; margin-right: 12px; border: 1px solid var(--border-color); }
     </style>
 </head>
 <body>
-<div class="app">
-    <div class="top-bar">
-        <div class="top-bar-title">FX</div>
-        <select class="api-pill" id="api-selector">
-            <option value="exchangeratefree">ExchangeRate-API (Free)</option>
-            <option value="fxratesapi">FXRatesAPI</option>
-            <option value="exchangerate">ExchangeRate-API</option>
-            <option value="openexchange">Open Exchange Rates</option>
-        </select>
+<div class="terminal-window">
+    <div class="terminal-header">
+        <div class="terminal-buttons">
+            <div class="terminal-btn btn-red"></div>
+            <div class="terminal-btn btn-yellow"></div>
+            <div class="terminal-btn btn-green"></div>
+        </div>
+        <div class="terminal-title">FX PRO TERMINAL</div>
+    </div>
+    <div class="terminal-body">
+        <div class="header-content">
+            <div class="update-time" id="update-time">數據同步中...</div>
+        </div>
+        <div class="controls">
+            <button class="btn" id="edit-btn">Edit</button>
+            <button class="btn" id="add-btn">+ Add</button>
+            <select class="api-selector" id="api-selector">
+                <option value="fxratesapi">FXRatesAPI (專業版)</option>
+                <option value="exchangeratefree">ExchangeRate-API (免費)</option>
+                <option value="exchangerate">ExchangeRate-API (V6)</option>
+                <option value="openexchange">Open Exchange Rates</option>
+            </select>
+        </div>
+        <div id="currency-list" class="currency-list-container"></div>
     </div>
 
-    <div class="update-text" id="update-time">Loading...</div>
-
-    <div class="base-card">
-        <div class="flag-wrap base">
-            <img src="" alt="" id="base-flag-img" />
-        </div>
-        <button class="base-currency-btn" id="base-currency-btn">
-            <span class="code" id="base-code">HKD</span>
-            <span class="chevron">▾</span>
-        </button>
-        <div class="amount-section">
-            <input type="text" class="amount-input base" id="base-input"
-                   value="HK$ 1,000.00" data-code="HKD" data-symbol="HK$" inputmode="decimal" />
+    <div class="modal" id="calc-modal">
+        <div class="modal-content">
+            <div class="calc-container">
+                <div id="calc-title" style="color:var(--primary-green);margin-bottom:10px;font-size:12px"></div>
+                <div class="calc-header">
+                    <div id="calc-expr" style="color:#999;font-size:14px;min-height:1.2em"></div>
+                    <div class="calc-display" id="calc-display">0</div>
+                </div>
+                <div class="calc-grid">
+                    <button class="calc-btn" style="color:var(--error-red)" onclick="calcAction('AC')">AC</button>
+                    <button class="calc-btn" style="color:var(--error-red)" onclick="calcAction('DEL')">⌫</button>
+                    <button class="calc-btn op" onclick="calcInput('/')">÷</button>
+                    <button class="calc-btn op" onclick="calcInput('*')">×</button>
+                    <button class="calc-btn" onclick="calcInput('7')">7</button>
+                    <button class="calc-btn" onclick="calcInput('8')">8</button>
+                    <button class="calc-btn" onclick="calcInput('9')">9</button>
+                    <button class="calc-btn op" onclick="calcInput('-')">−</button>
+                    <button class="calc-btn" onclick="calcInput('4')">4</button>
+                    <button class="calc-btn" onclick="calcInput('5')">5</button>
+                    <button class="calc-btn" onclick="calcInput('6')">6</button>
+                    <button class="calc-btn op" onclick="calcInput('+')">+</button>
+                    <button class="calc-btn" onclick="calcInput('1')">1</button>
+                    <button class="calc-btn" onclick="calcInput('2')">2</button>
+                    <button class="calc-btn" onclick="calcInput('3')">3</button>
+                    <button class="calc-btn op" onclick="calcInput('.')">.</button>
+                    <button class="calc-btn" onclick="calcInput('0')">0</button>
+                    <button class="calc-btn" onclick="calcInput('00')">00</button>
+                    <button class="calc-btn done" onclick="calcAction('DONE')">確認</button>
+                </div>
+                <button class="btn" style="margin-top:20px; border-color:var(--error-red); color:var(--error-red); width:100%; padding:15px; height:50px;" onclick="closeModal('calc-modal')">取消</button>
+            </div>
         </div>
     </div>
 
-    <div id="currency-list"></div>
-</div>
-
-<div class="bottom-bar">
-    <button class="add-btn" id="add-btn" disabled>＋ Add currency</button>
-    <div class="bottom-right">
-        <span class="mid-text">Mid-market</span>
-        <button class="edit-btn" id="edit-btn">Edit</button>
-    </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<div class="modal" id="add-modal">
-    <div class="modal-sheet">
-        <div class="modal-header">
-            <span class="modal-title">Add Currency</span>
-            <button class="modal-cancel" id="add-modal-cancel">Cancel</button>
+    <div class="modal" id="add-modal">
+        <div class="modal-content" style="background:#ffffff">
+            <div class="terminal-header" style="position:sticky; top:0;">
+                <div class="terminal-title">Select Currency</div>
+                <button class="btn" style="margin-left:auto; border-color:var(--error-red); color:var(--error-red);" id="modal-close">Close</button>
+            </div>
+            <div id="currency-options" style="overflow-y:auto; flex:1; width:100%"></div>
         </div>
-        <div class="search-wrap">
-            <input type="text" class="search-input" id="add-search" placeholder="Search…" />
-        </div>
-        <div class="list-scroll" id="add-options"></div>
-    </div>
-</div>
-
-<div class="modal" id="base-modal">
-    <div class="modal-sheet">
-        <div class="modal-header">
-            <span class="modal-title">Base Currency</span>
-            <button class="modal-cancel" id="base-modal-cancel">Cancel</button>
-        </div>
-        <div class="search-wrap">
-            <input type="text" class="search-input" id="base-search" placeholder="Search…" />
-        </div>
-        <div class="list-scroll" id="base-options"></div>
     </div>
 </div>
 
 <script>
-    const OXR_APP_ID = '219fb31cd84b49acb19edb3cb5e7cdfd';
+        const API_CONFIGS = {
+            fxratesapi: { name: 'FXRatesAPI', key: 'fxr_live_38ad3c55b228cc844e71347bdb45cb3c63df', buildUrl: (key, codes) => `https://api.fxratesapi.com/latest?api_key=${key}&base=USD&currencies=${codes.join(',')}`, parseResponse: (data) => ({ success: data.success, rates: data.rates, timestamp: data.timestamp }) },
+            exchangeratefree: { name: 'ExchangeRate-API (Free)', key: '', buildUrl: (key, codes) => `https://api.exchangerate-api.com/v4/latest/USD`, parseResponse: (data) => ({ success: true, rates: data.rates, timestamp: data.time_last_updated }) },
+            exchangerate: { name: 'ExchangeRate-API', key: '0d5edd3dbe453790b0bcc4d6', buildUrl: (key, codes) => `https://v6.exchangerate-api.com/v6/${key}/latest/USD`, parseResponse: (data) => ({ success: data.result === 'success', rates: data.conversion_rates, timestamp: data.time_last_update_unix }) },
+            openexchange: { name: 'Open Exchange Rates', key: '219fb31cd84b49acb19edb3cb5e7cdfd', buildUrl: (key, codes) => `https://openexchangerates.org/api/latest.json?app_id=${key}`, parseResponse: (data) => ({ success: true, rates: data.rates, timestamp: data.timestamp }) }
+        };
 
-    const API_CONFIGS = {
-        exchangeratefree: {
-            name: 'ExchangeRate-API (Free)',
-            url:  'https://api.exchangerate-api.com/v4/latest/USD',
-            parse: d => ({ rates: d.rates, ts: d.time_last_updated || Math.floor(Date.now()/1000) })
-        },
-        fxratesapi: {
-            name: 'FXRatesAPI',
-            url:  'https://api.fxratesapi.com/latest?base=USD',
-            parse: d => ({ rates: d.rates, ts: d.timestamp || Math.floor(Date.now()/1000) })
-        },
-        exchangerate: {
-            name: 'ExchangeRate-API',
-            url:  'https://open.er-api.com/v6/latest/USD',
-            parse: d => ({ rates: d.rates, ts: d.time_last_update_unix || Math.floor(Date.now()/1000) })
-        },
-        openexchange: {
-            name: 'Open Exchange Rates',
-            url:  `https://openexchangerates.org/api/latest.json?app_id=${OXR_APP_ID}&base=USD`,
-            parse: d => ({ rates: d.rates, ts: d.timestamp || Math.floor(Date.now()/1000) })
+        const allCurrencyInfo = {
+            HKD: { name: 'Hong Kong Dollar', code: 'hk', symbol: 'HK$' },
+            USD: { name: 'United States Dollar', code: 'us', symbol: '$' },
+            EUR: { name: 'Euro', code: 'eu', symbol: '€' },
+            JPY: { name: 'Japanese Yen', code: 'jp', symbol: '¥' },
+            GBP: { name: 'British Pound', code: 'gb', symbol: '£' },
+            CNY: { name: 'Chinese Yuan', code: 'cn', symbol: '¥' },
+            AUD: { name: 'Australian Dollar', code: 'au', symbol: 'A$' },
+            CAD: { name: 'Canadian Dollar', code: 'ca', symbol: 'C$' },
+            CHF: { name: 'Swiss Franc', code: 'ch', symbol: 'CHF' },
+            SGD: { name: 'Singapore Dollar', code: 'sg', symbol: 'S$' },
+            SEK: { name: 'Swedish Krona', code: 'se', symbol: 'kr' },
+            KRW: { name: 'South Korean Won', code: 'kr', symbol: '₩' },
+            NOK: { name: 'Norwegian Krone', code: 'no', symbol: 'kr' },
+            NZD: { name: 'New Zealand Dollar', code: 'nz', symbol: 'NZ$' },
+            INR: { name: 'Indian Rupee', code: 'in', symbol: '₹' },
+            MXN: { name: 'Mexican Peso', code: 'mx', symbol: 'MX$' },
+            TWD: { name: 'New Taiwan Dollar', code: 'tw', symbol: 'NT$' },
+            ZAR: { name: 'South African Rand', code: 'za', symbol: 'R' },
+            BRL: { name: 'Brazilian Real', code: 'br', symbol: 'R$' },
+            THB: { name: 'Thai Baht', code: 'th', symbol: '฿' },
+            TRY: { name: 'Turkish Lira', code: 'tr', symbol: '₺' },
+            NGN: { name: 'Nigerian Naira', code: 'ng', symbol: '₦' },
+            PHP: { name: 'Philippine Peso', code: 'ph', symbol: '₱' },
+            VND: { name: 'Vietnamese Dong', code: 'vn', symbol: '₫' },
+            IDR: { name: 'Indonesian Rupiah', code: 'id', symbol: 'Rp' },
+            MYR: { name: 'Malaysian Ringgit', code: 'my', symbol: 'RM' },
+            RUB: { name: 'Russian Ruble', code: 'ru', symbol: '₽' }
+        };
+
+        // Vivid pastel palette - 20 distinct saturated hues, one per currency (hash-assigned)
+        const CARD_COLORS = [
+            { h: 142, s: 68 }, { h: 4,   s: 78 }, { h: 38,  s: 92 }, { h: 199, s: 75 },
+            { h: 328, s: 70 }, { h: 262, s: 65 }, { h: 22,  s: 85 }, { h: 168, s: 60 },
+            { h: 352, s: 75 }, { h: 88,  s: 55 }, { h: 214, s: 70 }, { h: 14,  s: 80 },
+            { h: 55,  s: 85 }, { h: 285, s: 60 }, { h: 180, s: 55 }, { h: 305, s: 65 },
+            { h: 122, s: 60 }, { h: 240, s: 65 }, { h: 65,  s: 70 }, { h: 8,   s: 70 }
+        ];
+        function getCardColor(code) {
+            let hash = 0;
+            for (let i = 0; i < code.length; i++) hash = (hash * 31 + code.charCodeAt(i)) % CARD_COLORS.length;
+            const c = CARD_COLORS[Math.abs(hash) % CARD_COLORS.length];
+            return {
+                bg: `hsl(${c.h}, ${c.s}%, 62%)`,
+                border: `hsl(${c.h}, ${c.s}%, 42%)`,
+                watermark: `hsl(${c.h}, ${c.s}%, 15%)`
+            };
         }
-    };
 
-    const ALL = {
-        HKD:{name:'Hong Kong Dollar',   flag:'hk', sym:'HK$'},
-        USD:{name:'US Dollar',          flag:'us', sym:'$'},
-        JPY:{name:'Japanese Yen',       flag:'jp', sym:'¥'},
-        EUR:{name:'Euro',               flag:'eu', sym:'€'},
-        GBP:{name:'British Pound',      flag:'gb', sym:'£'},
-        CNY:{name:'Chinese Yuan',       flag:'cn', sym:'¥'},
-        TWD:{name:'Taiwan Dollar',      flag:'tw', sym:'NT$'},
-        KRW:{name:'Korean Won',         flag:'kr', sym:'₩'},
-        SGD:{name:'Singapore Dollar',   flag:'sg', sym:'S$'},
-        AUD:{name:'Australian Dollar',  flag:'au', sym:'A$'},
-        CAD:{name:'Canadian Dollar',    flag:'ca', sym:'C$'},
-        CHF:{name:'Swiss Franc',        flag:'ch', sym:'CHF'},
-        MYR:{name:'Malaysian Ringgit',  flag:'my', sym:'RM'},
-        THB:{name:'Thai Baht',          flag:'th', sym:'฿'},
-        INR:{name:'Indian Rupee',       flag:'in', sym:'₹'},
-        IDR:{name:'Indonesian Rupiah',  flag:'id', sym:'Rp'},
-        PHP:{name:'Philippine Peso',    flag:'ph', sym:'₱'},
-        VND:{name:'Vietnamese Dong',    flag:'vn', sym:'₫'},
-        MXN:{name:'Mexican Peso',       flag:'mx', sym:'MX$'},
-        BRL:{name:'Brazilian Real',     flag:'br', sym:'R$'},
-        ZAR:{name:'South African Rand', flag:'za', sym:'R'},
-        SEK:{name:'Swedish Krona',      flag:'se', sym:'kr'},
-        NOK:{name:'Norwegian Krone',    flag:'no', sym:'kr'},
-        NZD:{name:'New Zealand Dollar', flag:'nz', sym:'NZ$'},
-        RUB:{name:'Russian Ruble',      flag:'ru', sym:'₽'},
-        TRY:{name:'Turkish Lira',       flag:'tr', sym:'₺'},
-        NGN:{name:'Nigerian Naira',     flag:'ng', sym:'₦'},
-    };
+        const defaultCurrencies = ['HKD', 'USD', 'EUR', 'JPY', 'GBP', 'CNY', 'AUD', 'CAD', 'CHF', 'SGD', 'SEK', 'KRW', 'NOK', 'NZD', 'INR', 'MXN', 'TWD', 'ZAR', 'BRL', 'THB'];
 
-    let rates=null, displayed=[], amounts={}, editMode=false, updating=false, base='HKD';
+        let displayedCurrencies = JSON.parse(localStorage.getItem('fx_terminal_list')) || [...defaultCurrencies];
 
-    function save() {
-        localStorage.setItem('fx_v4', JSON.stringify({
-            displayed, amounts,
-            api: document.getElementById('api-selector').value,
-            base
-        }));
-        showToast('✓ Saved');
-    }
+        let currentRates = null;
+        let ratesVsHKD = null;
+        let currentBaseHKD = 1000;
+        let isEditMode = false;
+        let calcVal = "0";
+        let calcTarget = "HKD";
 
-    function load() {
-        try {
-            const s = JSON.parse(localStorage.getItem('fx_v4'));
-            if (!s) return false;
-            displayed = s.displayed || [];
-            amounts   = s.amounts   || {};
-            base      = s.base      || 'HKD';
-            if (s.api) document.getElementById('api-selector').value = s.api;
-            return true;
-        } catch(e) { return false; }
-    }
-
-    function showToast(msg) {
-        const t = document.getElementById('toast');
-        t.textContent = msg; t.classList.add('show');
-        setTimeout(() => t.classList.remove('show'), 1800);
-    }
-
-    function fmt(n, d=2) {
-        const p = n.toFixed(d).split('.');
-        p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-        return p.join('.');
-    }
-
-    function fmtRate(r) {
-        if (r >= 100) return r.toFixed(2);
-        if (r >= 1)   return r.toFixed(4);
-        return r.toFixed(6);
-    }
-
-    function isSupported(code) {
-        return rates && rates[code] !== undefined;
-    }
-
-    async function fetchRates() {
-        const api = document.getElementById('api-selector').value;
-        const cfg = API_CONFIGS[api];
-        document.getElementById('update-time').textContent = 'Loading...';
-        try {
-            const res  = await fetch(cfg.url);
-            const data = await res.json();
-            if (data.error) throw new Error(data.description || data.error);
-            const { rates: raw, ts } = cfg.parse(data);
-            const hkd = raw['HKD'];
-            if (!hkd) throw new Error('HKD not found');
-            rates = {};
-            for (const c in raw) rates[c] = raw[c] / hkd;
-            rates['HKD'] = 1;
-            const t = new Date(ts * 1000);
-            document.getElementById('update-time').textContent =
-                `${cfg.name} · ${t.toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}`;
-            document.getElementById('add-btn').disabled = false;
-            return true;
-        } catch(e) {
-            document.getElementById('update-time').textContent = `${cfg.name} · Error: ${e.message}`;
-            document.getElementById('add-btn').disabled = true;
-            return false;
+        function saveSettings() {
+            localStorage.setItem('fx_terminal_list', JSON.stringify(displayedCurrencies));
         }
-    }
 
-    function renderBase() {
-        const info = ALL[base];
-        document.getElementById('base-code').textContent = base;
-        document.getElementById('base-flag-img').src = `https://flagcdn.com/w80/${info.flag}.png`;
-        const inp = document.getElementById('base-input');
-        inp.dataset.code   = base;
-        inp.dataset.symbol = info.sym;
-        inp.value = `${info.sym} ${fmt(amounts[base] || 1000)}`;
-    }
-
-    function recalcFromBase(amt) {
-        if (!rates) return;
-        updating = true;
-        amounts[base] = amt;
-        const inHKD = amt / rates[base];
-        displayed.forEach(c => {
-            if (!isSupported(c)) return;
-            const a = inHKD * rates[c]; amounts[c] = a;
-            const inp = document.getElementById(`inp-${c}`);
-            if (inp) inp.value = `${ALL[c].sym} ${fmt(a)}`;
-            const rel = document.getElementById(`rate-${c}`);
-            if (rel) rel.textContent = `1 ${base} = ${fmtRate(rates[c]/rates[base])} ${c}`;
-        });
-        updating = false;
-    }
-
-    function recalcFromCard(code, amt) {
-        if (updating || !rates) return;
-        updating = true;
-        amounts[code] = amt;
-        const inHKD = amt / rates[code];
-        amounts[base] = inHKD * rates[base];
-        document.getElementById('base-input').value = `${ALL[base].sym} ${fmt(amounts[base])}`;
-        displayed.forEach(c => {
-            if (c === code || !isSupported(c)) return;
-            const a = inHKD * rates[c]; amounts[c] = a;
-            const inp = document.getElementById(`inp-${c}`);
-            if (inp) inp.value = `${ALL[c].sym} ${fmt(a)}`;
-        });
-        updating = false;
-    }
-
-    function renderList() {
-        const list = document.getElementById('currency-list');
-        list.innerHTML = '';
-        if (displayed.length === 0) {
-            list.innerHTML = `<div style="text-align:center;padding:40px 0;color:#8E8E93;font-size:13px;">Tap "+ Add currency" to start</div>`;
-            return;
-        }
-        displayed.forEach(code => {
-            const info = ALL[code]; if (!info) return;
-            const supported = isSupported(code);
-            const amt = amounts[code] || (supported ? 1000 * rates[code] : 0);
-            const card = document.createElement('div');
-            card.className = 'currency-card' + (editMode ? ' editing' : '') + (supported ? '' : ' unsupported');
-
-            const amountHTML = supported
-                ? `<input type="text" id="inp-${code}" class="amount-input"
-                       value="${info.sym} ${fmt(amt)}"
-                       data-code="${code}" data-symbol="${info.sym}" inputmode="decimal"/>`
-                : `<span class="na-label">Not available</span>`;
-
-            card.innerHTML = `
-                ${editMode ? `<button class="delete-btn" data-code="${code}">×</button>` : ''}
-                <div class="flag-wrap"><img src="https://flagcdn.com/w80/${info.flag}.png" alt="${code}"/></div>
-                <div style="margin-right:10px;min-width:0;">
-                    <div class="currency-code">${code}</div>
-                    <div class="currency-rate" id="rate-${code}">${supported
-                        ? `1 ${base} = ${fmtRate(rates[code]/rates[base])} ${code}`
-                        : 'Not supported by this API'}</div>
-                </div>
-                <div class="amount-section">${amountHTML}</div>
-            `;
-            list.appendChild(card);
-
-            const del = card.querySelector('.delete-btn');
-            if (del) del.addEventListener('click', e => {
-                e.stopPropagation();
-                displayed = displayed.filter(c => c !== code);
-                delete amounts[code];
-                save(); renderList();
-            });
-
-            if (supported) {
-                const inp = document.getElementById(`inp-${code}`);
-                inp.addEventListener('focus', function() {
-                    this.value = this.value.replace(this.dataset.symbol,'').replace(/,/g,'').trim();
-                });
-                inp.addEventListener('blur', function() {
-                    let v = parseFloat(this.value.replace(/[^0-9.-]/g,''));
-                    if (isNaN(v)) v = 0;
-                    this.value = `${this.dataset.symbol} ${fmt(v)}`;
-                    save();
-                });
-                inp.addEventListener('input', function() {
-                    const v = parseFloat(this.value.replace(/[^0-9.-]/g,''));
-                    if (!isNaN(v) && v >= 0) recalcFromCard(this.dataset.code, v);
-                });
-            }
-        });
-    }
-
-    const bInp = document.getElementById('base-input');
-    bInp.addEventListener('focus', function() {
-        this.value = this.value.replace(this.dataset.symbol,'').replace(/,/g,'').trim();
-    });
-    bInp.addEventListener('blur', function() {
-        let v = parseFloat(this.value.replace(/[^0-9.-]/g,''));
-        if (isNaN(v)) v = 1000;
-        this.value = `${this.dataset.symbol} ${fmt(v)}`;
-        save();
-    });
-    bInp.addEventListener('input', function() {
-        const v = parseFloat(this.value.replace(/[^0-9.-]/g,''));
-        if (!isNaN(v) && v >= 0) recalcFromBase(v);
-    });
-
-    function buildBaseModal(q='') {
-        const con = document.getElementById('base-options');
-        con.innerHTML = '';
-        const kw = q.toLowerCase();
-        Object.keys(ALL)
-            .filter(c => isSupported(c) && (c.toLowerCase().includes(kw) || ALL[c].name.toLowerCase().includes(kw)))
-            .forEach(code => {
-                const info = ALL[code];
-                const el = document.createElement('div');
-                el.className = 'opt' + (code === base ? ' selected' : '');
-                el.innerHTML = `
-                    <img src="https://flagcdn.com/w80/${info.flag}.png" alt="${code}"/>
-                    <div><div class="opt-code">${code}</div><div class="opt-name">${info.name}</div></div>
-                    <span class="check">✓</span>
-                `;
-                el.addEventListener('click', () => {
-                    const oldBase = base; base = code;
-                    if (rates && amounts[oldBase]) {
-                        const inHKD = (amounts[oldBase]||1000) / rates[oldBase];
-                        amounts[base] = inHKD * rates[base];
-                    }
-                    document.getElementById('base-modal').classList.remove('active');
-                    document.getElementById('base-search').value = '';
-                    renderBase(); recalcFromBase(amounts[base]||1000); renderList(); save();
-                });
-                con.appendChild(el);
-            });
-        if (!con.children.length) con.innerHTML = `<div class="no-results">No currencies found</div>`;
-    }
-
-    document.getElementById('base-currency-btn').addEventListener('click', () => {
-        buildBaseModal();
-        document.getElementById('base-modal').classList.add('active');
-        setTimeout(() => document.getElementById('base-search').focus(), 150);
-    });
-    document.getElementById('base-modal-cancel').addEventListener('click', () => {
-        document.getElementById('base-modal').classList.remove('active');
-        document.getElementById('base-search').value = '';
-    });
-    document.getElementById('base-search').addEventListener('input', function() { buildBaseModal(this.value); });
-
-    function buildAddModal(q='') {
-        const con = document.getElementById('add-options');
-        con.innerHTML = '';
-        const kw = q.toLowerCase();
-        const avail = Object.keys(ALL).filter(c =>
-            c !== base && !displayed.includes(c) &&
-            (c.toLowerCase().includes(kw) || ALL[c].name.toLowerCase().includes(kw))
-        );
-        if (!avail.length) { con.innerHTML = `<div class="no-results">No currencies found</div>`; return; }
-        avail.forEach(code => {
-            const info = ALL[code];
-            const supported = isSupported(code);
-            const el = document.createElement('div');
-            el.className = 'opt';
-            el.style.opacity = supported ? '1' : '0.45';
-            el.innerHTML = `
-                <img src="https://flagcdn.com/w80/${info.flag}.png" alt="${code}"/>
-                <div>
-                    <div class="opt-code">${code}</div>
-                    <div class="opt-name">${info.name}${!supported ? ' · Not supported' : ''}</div>
-                </div>
-            `;
-            el.addEventListener('click', () => {
-                displayed.push(code);
-                if (supported && Object.keys(amounts).length > 0) {
-                    const inHKD = (amounts[base]||1000) / rates[base];
-                    amounts[code] = inHKD * rates[code];
+        async function fetchRates(apiType) {
+            const config = API_CONFIGS[apiType];
+            try {
+                const response = await fetch(config.buildUrl(config.key, Object.keys(allCurrencyInfo)));
+                const data = await response.json();
+                const parsed = config.parseResponse(data);
+                document.getElementById('update-time').textContent = `${config.name} | Last updated: ${new Date(parsed.timestamp * 1000).toLocaleString()}`;
+                currentRates = parsed.rates;
+                const hkdPerUsd = currentRates['HKD'];
+                ratesVsHKD = {};
+                for (const code in currentRates) {
+                    ratesVsHKD[code] = currentRates[code] / hkdPerUsd;
                 }
-                document.getElementById('add-modal').classList.remove('active');
-                document.getElementById('add-search').value = '';
-                save(); renderList();
+                ratesVsHKD['HKD'] = 1;
+                return ratesVsHKD;
+            } catch (error) {
+                document.getElementById('update-time').textContent = 'ERROR: Failed to load rates';
+                return null;
+            }
+        }
+
+        function formatNumberWithCommas(num, decimals = 2) {
+            const parts = num.toFixed(decimals).split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            return parts.join('.');
+        }
+
+        function renderCurrencies() {
+            const listElement = document.getElementById('currency-list');
+            listElement.innerHTML = '';
+
+            displayedCurrencies.forEach((code) => {
+                const info = allCurrencyInfo[code];
+                if (!info || !ratesVsHKD[code]) return;
+
+                const amount = currentBaseHKD * ratesVsHKD[code];
+                const isFixed = defaultCurrencies.slice(0, 1).includes(code);
+
+                const card = document.createElement('div');
+                card.className = 'currency-card';
+                card.dataset.code = code;
+                if (isEditMode) card.classList.add('editing');
+
+                const cardColor = getCardColor(code);
+                card.style.background = cardColor.bg;
+                card.style.borderColor = cardColor.border;
+
+                card.innerHTML = `
+                    <div class="card-actions-left">
+                        <span class="drag-handle">⠿</span>
+                        ${!isFixed ? `<button class="delete-btn" data-code="${code}">×</button>` : ''}
+                    </div>
+                    <div class="flag-icon">
+                        <img src="https://flagcdn.com/w160/${info.code}.png" alt="${code}" />
+                    </div>
+                    <div class="currency-info">
+                        <div class="currency-code">${code}</div>
+                        <div class="currency-watermark" style="color:${cardColor.watermark}">${info.name}</div>
+                    </div>
+                    <div class="currency-value">
+                        <input type="text" id="input-${code}" class="amount-input"
+                               value="${info.symbol} ${formatNumberWithCommas(amount)}" readonly />
+                    </div>
+                `;
+
+                const handle = card.querySelector('.drag-handle');
+                if (handle) {
+                    const dragStartHandler = (e) => {
+                        if (!isEditMode) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        startManualDrag(card, e);
+                    };
+                    handle.addEventListener('touchstart', dragStartHandler, { passive: false });
+                    handle.addEventListener('mousedown', dragStartHandler);
+                }
+
+                const delBtn = card.querySelector('.delete-btn');
+                if (delBtn) {
+                    delBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        displayedCurrencies = displayedCurrencies.filter(c => c !== code);
+                        saveSettings();
+                        renderCurrencies();
+                    };
+                }
+
+                const input = card.querySelector('.amount-input');
+                input.onclick = (e) => {
+                    if (isEditMode) return;
+                    e.stopPropagation();
+                    openCalc(code, parseFloat(input.value.replace(/[^0-9.-]+/g,"")) || 0);
+                };
+
+                listElement.appendChild(card);
             });
-            con.appendChild(el);
-        });
-    }
+        }
 
-    document.getElementById('add-btn').addEventListener('click', () => {
-        buildAddModal();
-        document.getElementById('add-modal').classList.add('active');
-        setTimeout(() => document.getElementById('add-search').focus(), 150);
-    });
-    document.getElementById('add-modal-cancel').addEventListener('click', () => {
-        document.getElementById('add-modal').classList.remove('active');
-        document.getElementById('add-search').value = '';
-    });
-    document.getElementById('add-search').addEventListener('input', function() { buildAddModal(this.value); });
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.currency-card:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
 
-    document.getElementById('edit-btn').addEventListener('click', () => {
-        editMode = !editMode;
-        const btn = document.getElementById('edit-btn');
-        btn.textContent = editMode ? 'Done' : 'Edit';
-        btn.classList.toggle('editing', editMode);
-        renderList();
-    });
+        function startManualDrag(card, startEvent) {
+            const listElement = document.getElementById('currency-list');
+            const isTouch = startEvent.type === 'touchstart';
+            let startY = isTouch ? startEvent.touches[0].clientY : startEvent.clientY;
+            const cardRect = card.getBoundingClientRect();
+            const offsetInCard = startY - cardRect.top;
 
-    document.getElementById('api-selector').addEventListener('change', async () => {
-        const ok = await fetchRates();
-        if (ok) { save(); recalcFromBase(amounts[base]||1000); renderList(); }
-    });
+            const placeholder = document.createElement('div');
+            placeholder.style.height = cardRect.height + 'px';
+            placeholder.style.flexShrink = '0';
 
-    async function init() {
-        load(); renderBase();
-        const ok = await fetchRates();
-        if (ok) { recalcFromBase(amounts[base]||1000); renderList(); }
-    }
+            card.classList.add('dragging');
+            card.style.position = 'fixed';
+            card.style.left = cardRect.left + 'px';
+            card.style.width = cardRect.width + 'px';
+            card.style.top = cardRect.top + 'px';
+            card.style.pointerEvents = 'none';
+            listElement.insertBefore(placeholder, card.nextSibling);
 
-    init();
+            function moveTo(clientY) {
+                card.style.top = (clientY - offsetInCard) + 'px';
+                const afterElement = getDragAfterElement(listElement, clientY);
+                if (afterElement == null) {
+                    listElement.appendChild(placeholder);
+                } else if (afterElement !== placeholder) {
+                    listElement.insertBefore(placeholder, afterElement);
+                }
+            }
+
+            function onMove(e) {
+                e.preventDefault();
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                moveTo(clientY);
+            }
+
+            function endDrag() {
+                card.classList.remove('dragging');
+                card.style.position = '';
+                card.style.left = '';
+                card.style.width = '';
+                card.style.top = '';
+                card.style.pointerEvents = '';
+                listElement.insertBefore(card, placeholder);
+                placeholder.remove();
+
+                document.removeEventListener('pointermove', onMove);
+                document.removeEventListener('pointerup', endDrag);
+                document.removeEventListener('pointercancel', endDrag);
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('touchend', endDrag);
+                document.removeEventListener('touchcancel', endDrag);
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', endDrag);
+
+                displayedCurrencies = [...document.querySelectorAll('.currency-card')].map(c => c.dataset.code);
+                saveSettings();
+            }
+
+            if (isTouch) {
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('touchend', endDrag);
+                document.addEventListener('touchcancel', endDrag);
+            } else if (startEvent.type === 'mousedown') {
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', endDrag);
+            } else {
+                document.addEventListener('pointermove', onMove);
+                document.addEventListener('pointerup', endDrag);
+                document.addEventListener('pointercancel', endDrag);
+            }
+        }
+
+        function updateAllAmounts(changedCode, changedAmount) {
+            currentBaseHKD = changedAmount / ratesVsHKD[changedCode];
+            displayedCurrencies.forEach(code => {
+                const input = document.getElementById(`input-${code}`);
+                if (input) {
+                    input.value = `${allCurrencyInfo[code].symbol} ${formatNumberWithCommas(currentBaseHKD * ratesVsHKD[code])}`;
+                }
+            });
+        }
+
+        function openCalc(code, val) {
+            calcTarget = code;
+            calcVal = val.toString();
+            document.getElementById('calc-title').textContent = code;
+            updateCalc();
+            document.getElementById('calc-modal').classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function calcInput(v) {
+            if (calcVal === "0" && v !== '.') calcVal = v;
+            else calcVal += v;
+            updateCalc();
+        }
+
+        function calcAction(a) {
+            if (a === 'AC') { calcVal = "0"; }
+            else if (a === 'DEL') { calcVal = calcVal.length > 1 ? calcVal.slice(0, -1) : "0"; }
+            else if (a === 'DONE') {
+                try {
+                    const result = Function(`return ${calcVal.replace(/×/g, '*').replace(/÷/g, '/')}`)();
+                    if (isFinite(result)) {
+                        updateAllAmounts(calcTarget, result);
+                        closeModal('calc-modal');
+                    } else { calcVal = "Error"; }
+                } catch (e) { calcVal = "Error"; }
+                updateCalc();
+                setTimeout(() => { calcVal = "0"; updateCalc(); }, 500);
+                return;
+            }
+            updateCalc();
+        }
+
+        function updateCalc() {
+            document.getElementById('calc-display').textContent = calcVal;
+            const expr = calcVal.replace(/×/g, '*').replace(/÷/g, '/');
+            if (/[+\-*/]/.test(expr)) {
+                try {
+                    const preview = Function(`return ${expr}`)();
+                    document.getElementById('calc-expr').textContent = isNaN(preview) ? '' : preview.toLocaleString();
+                } catch (e) { document.getElementById('calc-expr').textContent = ''; }
+            } else {
+                document.getElementById('calc-expr').textContent = '';
+            }
+        }
+
+        document.getElementById('edit-btn').onclick = () => {
+            isEditMode = !isEditMode;
+            const btn = document.getElementById('edit-btn');
+            btn.textContent = isEditMode ? 'Done' : 'Edit';
+            btn.classList.toggle('editing');
+            renderCurrencies();
+        };
+
+        document.getElementById('add-btn').onclick = () => {
+            const modal = document.getElementById('add-modal');
+            const container = document.getElementById('currency-options');
+            container.innerHTML = '';
+            Object.keys(allCurrencyInfo).forEach(code => {
+                if (!displayedCurrencies.includes(code) && ratesVsHKD[code]) {
+                    const option = document.createElement('div');
+                    option.className = 'currency-option';
+                    option.innerHTML = `
+                        <img src="https://flagcdn.com/w80/${allCurrencyInfo[code].code}.png" />
+                        <div><div style="font-weight:bold;color:#1b1f23">${code}</div><div style="font-size:12px;color:#999">${allCurrencyInfo[code].name}</div></div>
+                    `;
+                    option.onclick = () => {
+                        displayedCurrencies.push(code);
+                        saveSettings();
+                        modal.classList.remove('active');
+                        renderCurrencies();
+                    };
+                    container.appendChild(option);
+                }
+            });
+            modal.classList.add('active');
+        };
+
+        document.getElementById('modal-close').onclick = () => closeModal('add-modal');
+        document.getElementById('api-selector').onchange = () => initialize();
+
+        async function initialize() {
+            const rates = await fetchRates(document.getElementById('api-selector').value);
+            if (rates) renderCurrencies();
+        }
+
+        initialize();
 </script>
 </body>
 </html>
