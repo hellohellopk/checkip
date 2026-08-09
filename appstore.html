@@ -13,6 +13,36 @@
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .modal-enter { animation: slideUp 0.2s ease-out forwards; }
+
+        /* Region names: always reserve exactly two lines without increasing row height. */
+        .region-cell-center {
+            min-height: 1.61rem;
+            height: 1.61rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .hong-kong-row,
+        .hong-kong-row td {
+            background: #fff7cc !important;
+        }
+
+        .hong-kong-row {
+            font-weight: 600;
+            box-shadow: inset 3px 0 0 #f59e0b;
+        }
+
+        .region-name-2line {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            overflow: hidden;
+            line-height: 0.805rem;
+            height: 1.61rem;
+            word-break: normal;
+            overflow-wrap: anywhere;
+        }
         @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -23,7 +53,17 @@
         const { useState, useEffect } = React;
 
         const API = "https://api.priceradar.store";
-        const DEALS_WORKER = "https://z.samz.de5.net/";
+        const APPLE_TOP_PAID_FEEDS = [
+            "https://itunes.apple.com/us/rss/toppaidapplications/limit=25/json",
+            "https://rss.marketingtools.apple.com/api/v2/us/apps/top-paid/25/apps.json"
+        ];
+
+        // CORS proxy fallbacks for Apple RSS. The target URL is encoded so
+        // query-string parsing inside the proxy cannot corrupt the upstream URL.
+        const CORS_PROXIES = [
+            "https://round-morning-c112.nippon-eb8.workers.dev/?url=",
+            "https://my-vercel-proxy-iota.vercel.app/api/proxy?url="
+        ];
         const CURRENCY_SYMBOL = { USD: "$", CNY: "¥", HKD: "HK$", TWD: "NT$", JPY: "¥" };
         const ZERO_DECIMAL = { JPY: 1, KRW: 1, CLP: 1, IDR: 1, VND: 1 };
         
@@ -43,11 +83,63 @@
         }
         function formatPrice(value, currency) {
             const sym = CURRENCY_SYMBOL[currency] || currency + " ";
-            const num = ZERO_DECIMAL[currency] ? Math.round(value) : value.toFixed(2);
+            const num = ZERO_DECIMAL[currency] ? Math.round(value) : Number(value).toFixed(2);
             return sym + num;
         }
+
+        // Convert an API price into a major currency unit.
+        // The API may return either minor units (e.g. cents) or a zero-decimal
+        // currency. Keep this in one place so the table and lowest-price card
+        // use exactly the same conversion.
+        function getMajorPrice(price, currency) {
+            const n = Number(price);
+            if (!Number.isFinite(n)) return null;
+            return ZERO_DECIMAL[currency] ? n : n / 100;
+        }
+
+        function getHkdValue(major, currency, rates) {
+            if (!Number.isFinite(major) || currency === "HKD") return major;
+            const fromRate = Number(rates?.[currency]);
+            const hkdRate = Number(rates?.HKD);
+            if (!(fromRate > 0) || !(hkdRate > 0)) return null;
+            return (major / fromRate) * hkdRate;
+        }
         function artworkUrl(url, size = 200) {
-            return url ? url.replace("{w}x{h}{c}.{f}", `${size}x${size}bb.jpg`) : "";
+            if (!url) return "";
+            if (url.includes("{w}x{h}{c}.{f}")) {
+                return url.replace("{w}x{h}{c}.{f}", `${size}x${size}bb.jpg`);
+            }
+            return url;
+        }
+
+        function safeHttpsUrl(value) {
+            if (!value) return "";
+            try {
+                const url = new URL(value, window.location.href);
+                return url.protocol === "https:" ? url.href : "";
+            } catch (e) {
+                return "";
+            }
+        }
+
+        function makeAbortError() {
+            const err = new Error("Request cancelled");
+            err.name = "AbortError";
+            return err;
+        }
+
+        async function fetchJson(url, options = {}, timeoutMs = 15000) {
+            const controller = options.signal ? null : new AbortController();
+            const signal = options.signal || controller.signal;
+            const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
+            try {
+                const res = await fetch(url, { ...options, signal });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return await res.json();
+            } finally {
+                if (timer) clearTimeout(timer);
+            }
         }
 
         function App() {
@@ -62,15 +154,67 @@
             const [detailLoading, setDetailLoading] = useState(false);
             // 新增 State 來控制目前選取的方案分頁
             const [activePlanIdx, setActivePlanIdx] = useState(0);
+            const searchAbortRef = React.useRef(null);
+            const detailAbortRef = React.useRef(null);
 
             useEffect(() => {
                 const initData = async () => {
                     setLoading(true);
                     try {
-                        const [ratesRes, dealsRes] = await Promise.all([
-                            fetch(`${API}/v1/rates`).catch(() => null),
-                            fetch(DEALS_WORKER).catch(() => null)
-                        ]);
+                        const ratesPromise = fetch(`${API}/v1/rates`).catch(() => null);
+
+                        // Apple RSS is requested through the user's CORS proxies.
+                        // Try both proxies and both Apple feed endpoints so a
+                        // temporary proxy/feed failure does not leave the home
+                        // screen empty.
+                        let dealsRes = null;
+                        let dealsSource = "";
+
+                        for (const feedUrl of APPLE_TOP_PAID_FEEDS) {
+                            const proxiedUrls = CORS_PROXIES.map(
+                                proxy => proxy + encodeURIComponent(feedUrl)
+                            );
+
+                            // Also try direct access last, in case the current
+                            // browser/network already permits Apple's CORS headers.
+                            proxiedUrls.push(feedUrl);
+
+                            for (const requestUrl of proxiedUrls) {
+                                try {
+                                    const res = await fetch(requestUrl, {
+                                        headers: { "Accept": "application/json" }
+                                    });
+
+                                    if (res.ok) {
+                                        dealsRes = res;
+                                        dealsSource = requestUrl;
+                                        break;
+                                    }
+
+                                    console.warn(
+                                        "Apple RSS request failed:",
+                                        res.status,
+                                        requestUrl
+                                    );
+                                } catch (feedError) {
+                                    console.warn(
+                                        "Apple RSS/proxy request failed:",
+                                        requestUrl,
+                                        feedError
+                                    );
+                                }
+                            }
+
+                            if (dealsRes) break;
+                        }
+
+                        if (!dealsRes) {
+                            console.error("All Apple RSS/proxy requests failed.");
+                        } else {
+                            console.info("Apple Top Paid source:", dealsSource);
+                        }
+
+                        const ratesRes = await ratesPromise;
                         
                         if (ratesRes && ratesRes.ok) {
                             const rateData = await ratesRes.json();
@@ -78,20 +222,62 @@
                         }
                         
                         if (dealsRes && dealsRes.ok) {
-                            const dealsData = await dealsRes.json();
-                            const content = dealsData?.data?.appsOnSale?.content || [];
-                            const formattedDeals = content
-                                .filter(d => d.app?.ITunesId && d.app?.priceTier > 0)
-                                .map(d => ({
-                                    id: d.id,
-                                    itunesId: d.app.ITunesId,
-                                    name: d.app.title || "Unknown",
-                                    developer: d.app.developer?.name || "",
-                                    iconUrl: artworkUrl(d.app.artworkUrl),
-                                    oldTier: d.priceTierFrom,
-                                    isDeal: false
-                                }));
+                            // Apple has two JSON RSS schemas:
+                            // modern: feed.results[]
+                            // legacy iTunes: feed.entry[]
+                            const raw = await dealsRes.text();
+                            let feedData;
+
+                            try {
+                                feedData = JSON.parse(raw);
+                            } catch (parseError) {
+                                console.error("Apple RSS returned invalid JSON:", raw.slice(0, 300));
+                                throw new Error("Apple RSS returned invalid JSON");
+                            }
+
+                            const feed = feedData?.feed || {};
+
+                            const entries = Array.isArray(feed.results)
+                                ? feed.results.map(item => ({
+                                    id: item?.id,
+                                    name: item?.name,
+                                    artistName: item?.artistName,
+                                    artworkUrl100: item?.artworkUrl100,
+                                    artworkUrl600: item?.artworkUrl600
+                                }))
+                                : Array.isArray(feed.entry)
+                                    ? feed.entry.map(item => ({
+                                        id: item?.["im:id"]?.label ||
+                                            item?.id?.attributes?.["im:id"] ||
+                                            item?.id?.label,
+                                        name: item?.["im:name"]?.label,
+                                        artistName: item?.["im:artist"]?.label,
+                                        artworkUrl100: item?.["im:image"]?.[2]?.label ||
+                                            item?.["im:image"]?.[0]?.label
+                                    }))
+                                    : [];
+
+                            const formattedDeals = entries.map((app, index) => ({
+                                id: `apple-rss-${app.id || index}`,
+                                itunesId: app.id,
+                                name: app.name || "Unknown",
+                                developer: app.artistName || "",
+                                iconUrl: artworkUrl(app.artworkUrl100 || app.artworkUrl600 || ""),
+                                oldTier: null,
+                                isDeal: true,
+                                storeAppId: app.id
+                            })).filter(app => app.storeAppId);
+
+                            console.info(
+                                `Apple Top Paid Apps loaded: ${formattedDeals.length}`,
+                                feed.title || ""
+                            );
+
                             setResults(formattedDeals);
+
+                            if (!formattedDeals.length) {
+                                console.warn("Apple Top Paid RSS returned no app results.", feedData);
+                            }
                         }
                     } catch (e) {
                         console.error("Init error", e);
@@ -100,77 +286,141 @@
                     }
                 };
                 initData();
+
+                return () => {
+                    if (searchAbortRef.current) searchAbortRef.current.abort();
+                    if (detailAbortRef.current) detailAbortRef.current.abort();
+                };
             }, []);
 
             const handleSearch = async (e) => {
                 e.preventDefault();
                 const q = query.trim();
+
                 if (!q) {
+                    if (searchAbortRef.current) searchAbortRef.current.abort();
                     setMode('deals');
-                    return; 
+                    setLoading(false);
+                    return;
                 }
-                
+
+                if (searchAbortRef.current) searchAbortRef.current.abort();
+                const controller = new AbortController();
+                searchAbortRef.current = controller;
+
                 setMode('search');
                 setLoading(true);
+                setResults([]);
+
                 try {
-                    const res = await fetch(`${API}/v1/apps/search?q=${encodeURIComponent(q)}&store=apple_app_store&country=us`);
-                    const data = await res.json();
-                    if (data.code === 0) {
+                    const data = await fetchJson(
+                        `${API}/v1/apps/search?q=${encodeURIComponent(q)}&store=apple_app_store&country=us`,
+                        { signal: controller.signal }
+                    );
+
+                    if (controller.signal.aborted) return;
+
+                    if (data?.code === 0 && Array.isArray(data?.data)) {
                         const formatted = data.data.map(d => ({
                             id: d.id,
-                            name: d.name,
-                            developer: d.developer,
-                            iconUrl: d.icon_url,
+                            name: d.name || "Unknown",
+                            developer: d.developer || "",
+                            iconUrl: artworkUrl(d.icon_url || ""),
                             storeAppId: d.store_app_id
-                        }));
+                        })).filter(d => d.id != null || d.storeAppId != null);
+
                         setResults(formatted);
+                    } else {
+                        console.error("Search API returned an unexpected payload:", data);
+                        setResults([]);
                     }
                 } catch (e) {
-                    console.error("Search error", e);
+                    if (e?.name !== "AbortError") {
+                        console.error("Search error", e);
+                        setResults([]);
+                    }
                 } finally {
-                    setLoading(false);
+                    if (searchAbortRef.current === controller) {
+                        searchAbortRef.current = null;
+                        setLoading(false);
+                    }
                 }
             };
 
             const openDetails = async (app) => {
+                if (detailAbortRef.current) detailAbortRef.current.abort();
+
+                const controller = new AbortController();
+                detailAbortRef.current = controller;
+
                 setSelectedApp(app);
                 setDetailLoading(true);
                 setAppDetails(null);
-                setActivePlanIdx(0); // 每次打開新 App 時，重設方案切換按鈕為第一個
-                
+                setActivePlanIdx(0);
+
                 try {
                     let prId = app.id;
+
                     if (app.isDeal && app.itunesId) {
-                        const searchRes = await fetch(`${API}/v1/apps/search?q=${encodeURIComponent(app.name)}&store=apple_app_store&country=us`);
-                        const searchData = await searchRes.json();
-                        const matched = searchData.data?.find(d => String(d.store_app_id) === String(app.itunesId));
-                        if (matched) prId = matched.id;
+                        try {
+                            const searchData = await fetchJson(
+                                `${API}/v1/apps/search?q=${encodeURIComponent(app.name)}&store=apple_app_store&country=us`,
+                                { signal: controller.signal }
+                            );
+
+                            const matched = Array.isArray(searchData?.data)
+                                ? searchData.data.find(
+                                    d => String(d.store_app_id) === String(app.itunesId)
+                                )
+                                : null;
+
+                            if (matched?.id != null) prId = matched.id;
+                        } catch (e) {
+                            if (e?.name === "AbortError") throw e;
+                            console.warn("Could not resolve deal App Store ID:", e);
+                        }
                     }
 
-                    const [pricesRes, metaRes] = await Promise.all([
-                        fetch(`${API}/v1/apps/${encodeURIComponent(prId)}/prices`),
-                        fetch(`${API}/v1/apps/${encodeURIComponent(prId)}`)
+                    if (prId == null) throw new Error("App ID is missing");
+
+                    const encodedId = encodeURIComponent(String(prId));
+                    const [pricesData, metaData] = await Promise.all([
+                        fetchJson(`${API}/v1/apps/${encodedId}/prices`, { signal: controller.signal }),
+                        fetchJson(`${API}/v1/apps/${encodedId}`, { signal: controller.signal })
                     ]);
-                    
-                    const pricesData = await pricesRes.json();
-                    const metaData = await metaRes.json();
-                    
+
+                    if (controller.signal.aborted) return;
+
                     setAppDetails({
                         ...app,
-                        meta: metaData.code === 0 ? metaData.data : {},
-                        plans: pricesData.code === 0 ? pricesData.data.plans : []
+                        meta: metaData?.code === 0 ? (metaData.data || {}) : {},
+                        plans: pricesData?.code === 0 && Array.isArray(pricesData?.data?.plans)
+                            ? pricesData.data.plans
+                            : []
                     });
-
                 } catch (e) {
+                    if (e?.name === "AbortError") return;
                     console.error("Detail error", e);
-                    setAppDetails({ error: "Failed to load prices." });
+                    setAppDetails({ error: "Failed to load prices. Please try again." });
                 } finally {
-                    setDetailLoading(false);
+                    if (detailAbortRef.current === controller) {
+                        detailAbortRef.current = null;
+                        setDetailLoading(false);
+                    }
                 }
             };
 
             // 過濾出有效的方案
-            const validPlans = appDetails?.plans?.filter(p => p.prices?.length > 0) || [];
+            const validPlans = appDetails?.plans?.filter(
+                p => Array.isArray(p?.prices) && p.prices.length > 0
+            ) || [];
+
+            // Keep the selected tab valid even if the API returns a different
+            // number of plans than the previous app.
+            const safePlanIdx = Math.min(
+                Math.max(activePlanIdx, 0),
+                Math.max(validPlans.length - 1, 0)
+            );
 
             return (
                 <div className="bg-white flex flex-col h-full w-full overflow-hidden relative">
@@ -213,12 +463,12 @@
                                     <div 
                                         key={idx} 
                                         onClick={() => openDetails(app)}
-                                        className="bg-white hover:bg-gray-50 border-b border-gray-200 p-4 cursor-pointer transition-colors group flex items-center gap-4 w-full"
+                                        className="bg-white hover:bg-gray-50 border-b border-gray-200 px-3 py-2.5 cursor-pointer transition-colors group flex items-center gap-3 w-full"
                                     >
                                         {app.iconUrl ? (
-                                            <img src={app.iconUrl} className="w-12 h-12 rounded-xl border border-gray-100 object-cover shrink-0" alt="icon" />
+                                            <img src={app.iconUrl} className="w-9 h-9 rounded-lg border border-gray-100 object-cover shrink-0" alt="icon" />
                                         ) : (
-                                            <div className="w-12 h-12 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center text-lg font-bold text-gray-500 shrink-0">
+                                            <div className="w-9 h-9 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-base font-bold text-gray-500 shrink-0">
                                                 {app.name.charAt(0)}
                                             </div>
                                         )}
@@ -234,7 +484,10 @@
                                     </div>
                                 ))}
                                 {!results.length && !loading && (
-                                    <div className="text-center text-gray-500 mt-10">No paid results found.</div>
+                                    <div className="text-center text-gray-500 mt-10">
+                                        No Top Paid Apps found.<br />
+                                        <span className="text-xs text-gray-400">Apple RSS / CORS proxy is unavailable.</span>
+                                    </div>
                                 )}
                             </div>
                         )}
@@ -243,9 +496,15 @@
                     {/* Detail Modal */}
                     {selectedApp && (
                         <div className="absolute inset-0 z-50 bg-white flex flex-col modal-enter overflow-hidden w-full h-full">
-                            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50 shrink-0 w-full">
+                            <div className="flex justify-between items-center px-3 py-2.5 border-b border-gray-200 bg-gray-50 shrink-0 w-full">
                                 <div className="flex items-center gap-3">
-                                    <img src={selectedApp.iconUrl} className="w-10 h-10 rounded-xl border border-gray-200 shrink-0" alt="" />
+                                    {selectedApp.iconUrl ? (
+                                        <img src={selectedApp.iconUrl} className="w-9 h-9 rounded-lg border border-gray-200 shrink-0" alt="" />
+                                    ) : (
+                                        <div className="w-9 h-9 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center font-bold text-gray-500 shrink-0">
+                                            {(selectedApp.name || "?").charAt(0)}
+                                        </div>
+                                    )}
                                     <div className="flex-1 min-w-0 pr-4">
                                         <h3 className="font-bold text-base text-gray-800 truncate">{selectedApp.name}</h3>
                                         <p className="text-xs text-gray-500 truncate">{selectedApp.developer}</p>
@@ -264,9 +523,9 @@
                                 ) : (
                                     <div className="flex flex-col w-full pb-8">
                                         {/* Store Link */}
-                                        {appDetails?.meta?.store_url && (
+                                        {safeHttpsUrl(appDetails?.meta?.store_url) && (
                                             <div className="flex justify-end p-4 border-b border-gray-100 bg-white w-full shrink-0">
-                                                <a href={appDetails.meta.store_url} target="_blank" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                                <a href={safeHttpsUrl(appDetails.meta.store_url)} target="_blank" rel="noopener noreferrer" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                                                     Open in App Store ↗
                                                 </a>
                                             </div>
@@ -285,7 +544,7 @@
                                                             key={idx}
                                                             onClick={() => setActivePlanIdx(idx)}
                                                             className={`px-4 py-2 rounded-full text-sm font-bold transition-all border ${
-                                                                activePlanIdx === idx
+                                                                safePlanIdx === idx
                                                                     ? 'bg-violet-600 text-white border-violet-600 shadow-md'
                                                                     : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100 shadow-sm'
                                                             }`}
@@ -297,20 +556,26 @@
 
                                                 {/* 顯示目前選取的方案內容 */}
                                                 {(() => {
-                                                    const plan = validPlans[activePlanIdx];
+                                                    const plan = validPlans[safePlanIdx];
                                                     if (!plan) return null;
 
-                                                    const validPrices = plan.prices.filter(p => rates[p.currency] && rates['HKD']);
+                                                    const validPrices = plan.prices.filter(p => {
+                                                        const major = getMajorPrice(p?.price, p?.currency);
+                                                        return major != null && (
+                                                            p.currency === "HKD" ||
+                                                            (Number(rates?.[p.currency]) > 0 && Number(rates?.HKD) > 0)
+                                                        );
+                                                    });
                                                     const sortedPrices = validPrices.map(p => {
-                                                        const major = toMajor(p.price, p.currency);
-                                                        const hkdValue = (major / rates[p.currency]) * rates['HKD'];
+                                                        const major = getMajorPrice(p.price, p.currency);
+                                                        const hkdValue = getHkdValue(major, p.currency, rates);
                                                         return {
                                                             regionCode: p.region_code,
-                                                            regionName: getRegionName(p.region_code),
+                                                            regionName: getRegionName(p.region_code) || p.region_code || "Unknown",
                                                             original: formatPrice(major, p.currency),
                                                             hkd: hkdValue
                                                         };
-                                                    }).filter(p => p.hkd > 0)
+                                                    }).filter(p => Number.isFinite(p.hkd) && p.hkd >= 0)
                                                       .sort((a, b) => a.hkd - b.hkd);
 
                                                     const lowest = sortedPrices[0];
@@ -344,10 +609,17 @@
                                                                     </thead>
                                                                     <tbody className="divide-y divide-gray-100">
                                                                         {sortedPrices.map((p, i) => (
-                                                                            <tr key={i} className="hover:bg-gray-50 active:bg-gray-100">
-                                                                                <td className="px-4 py-3 text-gray-700 truncate">{p.regionName}</td>
-                                                                                <td className="px-2 py-3 text-right text-gray-700 truncate">{p.original}</td>
-                                                                                <td className="px-4 py-3 text-right font-mono text-gray-600 truncate">{formatPrice(p.hkd, 'HKD')}</td>
+                                                                            <tr key={i} className={`hover:bg-gray-50 active:bg-gray-100 ${
+                                                                                         String(p.regionCode || "").toUpperCase() === "HK" ||
+                                                                                         String(p.regionName || "").toLowerCase() === "hong kong"
+                                                                                             ? "hong-kong-row"
+                                                                                             : ""
+                                                                                     }`}>
+                                                                                <td className="px-4 py-2 text-gray-700">
+                                                                                    <div className="region-cell-center"><div className="region-name-2line" title={p.regionName}>{p.regionName}</div></div>
+                                                                                </td>
+                                                                                <td className="px-2 py-2 text-right text-gray-700 truncate">{p.original}</td>
+                                                                                <td className="px-4 py-2 text-right font-mono text-gray-600 truncate">{formatPrice(p.hkd, 'HKD')}</td>
                                                                             </tr>
                                                                         ))}
                                                                     </tbody>
