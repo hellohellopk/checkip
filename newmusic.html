@@ -1,694 +1,440 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apple Music HK Tracker v5.0 (Dynamic Charts)</title>
-    
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-        body {
-            background-color: #f8fafc;
-            color: #334155;
-            font-family: 'Inter', -apple-system, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .apple-glass {
-            background: rgba(255, 255, 255, 0.75);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-        }
-        .song-item { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-        .song-item:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.05); }
-        .song-item:active { transform: scale(0.98); }
-        
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-slide-up { animation: slideUp 0.4s ease-out forwards; }
-        
-        /* 音量波動動畫 */
-        .bars { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
-        .bar { width: 3px; animation: bounce 0.6s infinite alternate; border-radius: 1px; }
-        .bar:nth-child(1) { animation-delay: 0.0s; }
-        .bar:nth-child(2) { animation-delay: 0.2s; }
-        .bar:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes bounce { from { height: 4px; } to { height: 14px; } }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apple Music 歌曲擷取工具</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+body { background-color: #f8fafc; color: #334155; font-family: 'Inter', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+.apple-glass { background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.6); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); }
+.song-item { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+.song-item:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.05); }
+.song-item:active { transform: scale(0.98); }
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.animate-slide-up { animation: slideUp 0.4s ease-out forwards; }
+.bars { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
+.bar { width: 3px; animation: bounce 0.6s infinite alternate; border-radius: 1px; }
+.bar:nth-child(1) { animation-delay: 0.0s; }
+.bar:nth-child(2) { animation-delay: 0.2s; }
+.bar:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { from { height: 4px; } to { height: 14px; } }
+</style>
 </head>
 <body>
-    <div id="root"></div>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo } = React;
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef, useMemo, useCallback } = React;
+const VERCEL_PROXY = "https://my-vercel-proxy-iota.vercel.app/api/proxy?url=";
+const CF_PROXY = "https://round-morning-c112.nippon-eb8.workers.dev/?url=";
 
-        const VERCEL_PROXY = "https://my-vercel-proxy-iota.vercel.app/api/proxy?url=";
-        const CF_PROXY = "https://round-morning-c112.nippon-eb8.workers.dev/?url=";
+const DEFAULTS = {
+  tgToken: "7973350853:AAG9O-4WEvDy2792Dux8DZqPvDGr3CapmxE",
+  tgChatId: "-1003217464122"
+};
 
-        const DEFAULTS = {
-            category: "new_songs",
-            roomUrl: "https://music.apple.com/hk/room/6759756034",
-            tgToken: "7973350853:AAG9O-4WEvDy2792Dux8DZqPvDGr3CapmxE",
-            tgChatId: "-1003217464122"
+const CARD_COLORS = ["#ef4444","#f97316","#f59e0b","#84cc16","#10b981","#14b8a6","#06b6d4","#0ea5e9","#3b82f6","#6366f1","#8b5cf6","#d946ef","#f43f5e"];
+
+const Icons = {
+  Music: (props) => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>,
+  Close: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+  Settings: (className) => <svg className={className.className || "w-5 h-5"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  Check: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  Loader: (className) => <svg className={(className.className || "w-5 h-5") + " animate-spin"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>,
+  Telegram: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>,
+  Play: () => <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>,
+  Copy: (className) => <svg className={className.className || "w-3.5 h-3.5"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,
+  Download: (className) => <svg className={className.className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+  Link: (className) => <svg className={className.className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+};
+
+const App = () => {
+  const getInitialConfig = () => {
+    const saved = localStorage.getItem("am_extractor_config");
+    if (saved) {
+      try { return { ...DEFAULTS, ...JSON.parse(saved) }; } catch (e) { return DEFAULTS; }
+    }
+    return DEFAULTS;
+  };
+
+  const [config, setConfig] = useState(getInitialConfig);
+  const [logs, setLogs] = useState([]);
+  const [sendingMap, setSendingMap] = useState({});
+  const [copyMap, setCopyMap] = useState({});
+  const [showSettings, setShowSettings] = useState(false);
+
+  const [pastedUrl, setPastedUrl] = useState("");
+  const [isPastedLoading, setIsPastedLoading] = useState(false);
+  const [songs, setSongs] = useState([]);
+  const [onlyChinese, setOnlyChinese] = useState(false);
+
+  const [playingId, setPlayingId] = useState(null);
+  const [loadingAudioId, setLoadingAudioId] = useState(null);
+  const audioRef = useRef(new Audio());
+
+  useEffect(() => { localStorage.setItem("am_extractor_config", JSON.stringify(config)); }, [config]);
+
+  const addLog = (m) => setLogs(p => [...p.slice(-19), m]);
+
+  const cleanUrl = (url) => {
+    if (!url) return url;
+    try {
+      const u = new URL(url);
+      u.searchParams.delete("i");
+      return u.toString();
+    } catch { return url; }
+  };
+
+  const fetchData = async (url) => {
+    try {
+      const res = await fetch(VERCEL_PROXY + encodeURIComponent(url));
+      if (!res.ok) throw new Error("vercel proxy failed");
+      return await res.text();
+    } catch {
+      const res = await fetch(CF_PROXY + encodeURIComponent(url));
+      return await res.text();
+    }
+  };
+
+  const fetchPreviewUrl = async (trackId) => {
+    if (!trackId) return null;
+    try {
+      const apiUrl = `https://itunes.apple.com/lookup?id=${trackId}&country=HK`;
+      const resText = await fetchData(apiUrl);
+      const json = JSON.parse(resText);
+      return json.results?.[0]?.previewUrl || null;
+    } catch (e) { return null; }
+  };
+
+  const handleTogglePlay = async (song) => {
+    if (playingId === song.id) {
+      audioRef.current.pause();
+      setPlayingId(null);
+      return;
+    }
+    audioRef.current.pause();
+    if (song.preview) {
+      audioRef.current.src = song.preview;
+      audioRef.current.load();
+      audioRef.current.play();
+      setPlayingId(song.id);
+      return;
+    }
+    setLoadingAudioId(song.id);
+    const extractTrackId = (url) => {
+      try { return new URL(url).searchParams.get("i"); } catch { return null; }
+    };
+    const trackId = extractTrackId(song.url) || song.id;
+    const pUrl = await fetchPreviewUrl(trackId);
+    if (pUrl) {
+      song.preview = pUrl;
+      audioRef.current.src = pUrl;
+      audioRef.current.load();
+      audioRef.current.play();
+      setPlayingId(song.id);
+    } else {
+      addLog(`⚠️ 無法取得試聽: ${song.name}`);
+    }
+    setLoadingAudioId(null);
+  };
+
+  useEffect(() => {
+    const a = audioRef.current;
+    const end = () => setPlayingId(null);
+    a.addEventListener("ended", end);
+    return () => a.removeEventListener("ended", end);
+  }, []);
+
+  const sendToTelegram = async (song) => {
+    if (sendingMap[song.id] === "sending") return;
+    setSendingMap(p => ({ ...p, [song.id]: "sending" }));
+    const message = `<b>${song.name}</b>\n${song.artist}\n${cleanUrl(song.url)}`;
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${config.tgToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: config.tgChatId, text: message, parse_mode: "HTML" })
+      });
+      if (!res.ok) throw new Error("send failed");
+      setSendingMap(p => ({ ...p, [song.id]: "success" }));
+      setTimeout(() => setSendingMap(p => ({ ...p, [song.id]: null })), 3000);
+    } catch (e) {
+      addLog(`❌ Telegram 發送失敗: ${song.name}`);
+      setSendingMap(p => ({ ...p, [song.id]: "error" }));
+    }
+  };
+
+  const copySong = async (song) => {
+    const text = `${song.name} - ${song.artist}\n${cleanUrl(song.url)}`;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopyMap(p => ({ ...p, [song.id]: true }));
+      addLog(`📋 已複製: ${song.name}`);
+      setTimeout(() => setCopyMap(p => ({ ...p, [song.id]: false })), 2000);
+    } catch (e) {
+      addLog(`❌ 複製失敗: ${song.name}`);
+    }
+  };
+
+  const parseRoomSongs = (html) => {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const script = doc.getElementById("serialized-server-data");
+    let found = [];
+    if (script) {
+      try {
+        const json = JSON.parse(script.innerText);
+        const search = (obj) => {
+          if (!obj || typeof obj !== "object") return;
+          const list = Array.isArray(obj.items) ? obj.items : (Array.isArray(obj.data) ? obj.data : null);
+          if (list) {
+            list.forEach(i => {
+              const attrs = i.attributes || {};
+              const name = i.title || attrs.name;
+              const artist = i.artistName || attrs.artistName;
+              const url = i.contentDescriptor?.url || i.url || attrs.url;
+              const artworkObj = i.artwork || attrs.artwork;
+              const artworkUrl = artworkObj?.url;
+              if (name && artist && (!i.type || i.type === "songs" || i.type === "tracks")) {
+                found.push({
+                  id: i.id || `${name}-${artist}`,
+                  name, artist, url,
+                  img: artworkUrl ? artworkUrl.replace("{w}", "100").replace("{h}", "100").replace("{f}", "jpg") : null,
+                  preview: attrs.previews?.[0]?.url || null,
+                  color: CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]
+                });
+              }
+            });
+          }
+          Object.values(obj).forEach(search);
         };
+        search(Array.isArray(json) ? json[0] : json);
+      } catch (e) {}
+    }
+    return found.filter((v, idx, a) => a.findIndex(t => (t.name === v.name && t.artist === v.artist)) === idx);
+  };
 
-        const CATEGORIES = {
-            'new_songs': { label: '必聽新歌', searchTitle: '必聽新歌', startPage: 'https://music.apple.com/hk/new' },
-            'pop_hits': { label: '今期流行', searchTitle: '今期流行', startPage: 'https://music.apple.com/hk/new' },
-            'alist_canto': { label: 'A-List：廣東歌', searchTitle: 'A-List：廣東歌', startPage: 'https://music.apple.com/hk/new' }
-        };
+  const handleFetchPlaylist = async () => {
+    const url = pastedUrl.trim();
+    if (!url) return;
+    if (!url.startsWith("http") || !url.includes("music.apple.com")) {
+      addLog("⚠️ 請貼上有效的 Apple Music 連結");
+      return;
+    }
+    setIsPastedLoading(true);
+    setLogs([]);
+    addLog("🔗 正在解析連結...");
+    try {
+      const html = await fetchData(url);
+      const results = parseRoomSongs(html);
+      if (results.length === 0) throw new Error("找不到歌曲，請確認連結是否為有效的 Playlist / Room / Album");
+      setSongs(results);
+      addLog(`🎉 成功取得 ${results.length} 首歌曲`);
+    } catch (e) {
+      addLog(`❌ 解析失敗: ${e.message}`);
+      setSongs([]);
+    } finally {
+      setIsPastedLoading(false);
+    }
+  };
 
-        const CARD_COLORS = [
-            '#ef4444', '#f97316', '#f59e0b', '#84cc16', 
-            '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', 
-            '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#f43f5e'
-        ];
+  const clearPlaylist = () => {
+    setSongs([]);
+    setPastedUrl("");
+    setLogs([]);
+  };
 
-        const Icons = {
-            Music: () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>,
-            Search: () => <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
-            Close: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
-            Settings: ({className}) => <svg className={className || "w-5 h-5"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-            Check: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
-            Loader: ({className}) => <svg className={`animate-spin ${className || 'w-5 h-5'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>,
-            Telegram: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>,
-            Play: () => <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>,
-            Refresh: ({className}) => <svg className={className || "w-4 h-4"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 0 1-9 9m-9-9a9 9 0 0 1 9-9m4 8H9m2-2-2 2 2 2"/></svg>
-        };
+  const displayList = useMemo(() => {
+    return songs.filter(s => onlyChinese ? /[\u4e00-\u9fa5]/.test(s.name + s.artist) : true);
+  }, [songs, onlyChinese]);
 
-        const App = () => {
-            const getInitialConfig = () => {
-                const saved = localStorage.getItem('am_tracker_config');
-                if (saved) {
-                    try { 
-                        const parsed = JSON.parse(saved); 
-                        if (parsed.category === 'top_100_hk' && !parsed.category.startsWith('http')) {
-                            parsed.category = 'new_songs';
-                        }
-                        return parsed;
-                    } catch (e) { return DEFAULTS; }
-                }
-                return DEFAULTS;
-            };
+  const exportToTxt = () => {
+    if (displayList.length === 0) {
+      addLog("⚠️ 沒有可匯出的歌曲");
+      return;
+    }
+    const lines = displayList.map((s, idx) => `${idx + 1}. ${s.name} - ${s.artist}\n${cleanUrl(s.url)}`);
+    const content = lines.join("\n\n");
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const link = document.createElement("a");
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    link.href = URL.createObjectURL(blob);
+    link.download = `apple_music_songs_${ts}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    addLog(`📄 已匯出 ${displayList.length} 首歌曲為 TXT`);
+  };
 
-            const [config, setConfig] = useState(getInitialConfig());
-            const [status, setStatus] = useState('idle');
-            const [logs, setLogs] = useState([]);
-            const [sendingMap, setSendingMap] = useState({});
-            const [showSettings, setShowSettings] = useState(false);
-            
-            const [roomSongs, setRoomSongs] = useState([]);
-            const [searchSongs, setSearchSongs] = useState([]);
-            const [topPlaylists, setTopPlaylists] = useState([]); // 動態存儲抓取到的排行榜
-            
-            const [searchTerm, setSearchTerm] = useState('');
-            const [onlyChinese, setOnlyChinese] = useState(false);
-            const [isSearching, setIsSearching] = useState(false);
-            const [searchOffset, setSearchOffset] = useState(0);
-            const [hasMore, setHasMore] = useState(false);
-            const [isFetchingMore, setIsFetchingMore] = useState(false);
-            
-            const searchCache = useRef({}); 
-            const observerTarget = useRef(null);
-            
-            const [playingId, setPlayingId] = useState(null);
-            const [loadingAudioId, setLoadingAudioId] = useState(null);
-            const audioRef = useRef(new Audio());
+  return (
+    <div className="max-w-xl mx-auto min-h-screen flex flex-col p-4 pb-24">
+      <div className="mt-6 mb-4 rounded-2xl overflow-hidden shadow-sm border border-gray-200 bg-white">
+        <div className="bg-gray-100/80 px-4 py-2.5 flex items-center justify-between border-b border-gray-200 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-[#ff5f56] shadow-sm border border-red-500/20"></div>
+            <div className="w-3 h-3 rounded-full bg-[#ffbd2e] shadow-sm border border-yellow-500/20"></div>
+            <div className="w-3 h-3 rounded-full bg-[#27c93f] shadow-sm border border-green-500/20"></div>
+            <span className="text-[11px] text-gray-600 font-black ml-3 tracking-widest uppercase select-none">
+              歌曲擷取工具
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setShowSettings(!showSettings)} className={`p-1.5 rounded-lg transition-all border shadow-sm ${showSettings ? "bg-blue-50 text-blue-600 border-blue-200" : "bg-transparent text-gray-500 border-transparent hover:bg-white hover:text-gray-700 hover:border-gray-200"}`} title="設定">
+              <Icons.Settings className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        <div className="p-4 h-32 overflow-y-auto custom-scrollbar font-mono text-[11px] leading-relaxed bg-[#f8fafc]">
+          {logs.map((l, i) => (
+            <div key={i} className={
+              l.includes("🎉") ? "text-emerald-600" :
+              l.includes("❌") ? "text-rose-500" :
+              l.includes("🔗") ? "text-blue-600" :
+              "text-gray-700"
+            }>
+              <span className="text-gray-400 mr-2">›</span>{l}
+            </div>
+          ))}
+        </div>
+      </div>
 
-            useEffect(() => {
-                localStorage.setItem('am_tracker_config', JSON.stringify(config));
-            }, [config]);
+      {showSettings && (
+        <div className="mb-6 p-5 apple-glass rounded-2xl animate-slide-up shadow-sm">
+          <div className="space-y-3">
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase px-1">Telegram Bot Token</label>
+              <input className="w-full bg-white border border-gray-200 rounded-lg p-2.5 text-xs font-mono text-gray-700 outline-none focus:border-blue-400 transition-all mt-1"
+                value={config.tgToken} onChange={e => setConfig({ ...config, tgToken: e.target.value })} />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase px-1">Telegram Chat ID</label>
+              <input className="w-full bg-white border border-gray-200 rounded-lg p-2.5 text-xs font-mono text-gray-700 outline-none focus:border-blue-400 transition-all mt-1"
+                value={config.tgChatId} onChange={e => setConfig({ ...config, tgChatId: e.target.value })} />
+            </div>
+            <button onClick={() => { setShowSettings(false); addLog("✅ Preferences Saved."); }}
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-2.5 rounded-lg text-xs uppercase tracking-widest mt-2 transition-colors">
+              儲存設定
+            </button>
+          </div>
+        </div>
+      )}
 
-            const addLog = (m) => setLogs(p => [...p.slice(-19), m]);
+      <div className="flex-1 flex flex-col gap-4 animate-slide-up">
+        <div className="apple-glass p-4 rounded-2xl shadow-sm space-y-2">
+          <label className="text-[10px] font-bold text-gray-400 uppercase px-1 flex items-center gap-1">
+            <Icons.Link className="w-3 h-3" /> 貼上 Playlist / Room / Album 連結
+          </label>
+          <div className="flex gap-2">
+            <input
+              className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-xs font-mono text-gray-700 outline-none focus:border-blue-400 transition-all"
+              placeholder="https://music.apple.com/hk/playlist/..."
+              value={pastedUrl}
+              onChange={e => setPastedUrl(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleFetchPlaylist(); }}
+            />
+            <button
+              onClick={handleFetchPlaylist}
+              disabled={isPastedLoading || !pastedUrl.trim()}
+              className="px-4 py-2.5 rounded-lg text-xs font-bold bg-blue-500 hover:bg-blue-600 text-white transition-all disabled:opacity-40 shrink-0 flex items-center gap-1.5"
+            >
+              {isPastedLoading ? <Icons.Loader className="w-3.5 h-3.5" /> : "獲取歌曲"}
+            </button>
+            {songs.length > 0 && (
+              <button onClick={clearPlaylist} className="px-2.5 py-2.5 rounded-lg text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-500 transition-all shrink-0" title="清除結果">
+                <Icons.Close />
+              </button>
+            )}
+          </div>
+        </div>
 
-            const cleanUrl = (url) => {
-                if (!url) return '';
-                try {
-                    const u = new URL(url);
-                    u.searchParams.delete('i');
-                    return u.toString();
-                } catch { return url; }
-            };
+        {songs.length > 0 && (
+          <div className="sticky top-2 z-20 apple-glass p-2 rounded-xl flex gap-2 shadow-sm items-center">
+            <span className="flex-1 text-xs font-bold text-gray-500 pl-2">共 {displayList.length} 首歌曲</span>
+            <button onClick={() => setOnlyChinese(!onlyChinese)}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${onlyChinese ? "bg-blue-500 text-white shadow-md" : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50"}`}>
+              中文
+            </button>
+            <button onClick={exportToTxt}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">
+              <Icons.Download className="w-3.5 h-3.5" /> 匯出 TXT
+            </button>
+          </div>
+        )}
 
-            const fetchData = async (url) => {
-                try {
-                    const res = await fetch(`${VERCEL_PROXY}${encodeURIComponent(url)}`);
-                    if (!res.ok) throw new Error();
-                    return await res.text();
-                } catch {
-                    const res = await fetch(`${CF_PROXY}${encodeURIComponent(url)}`);
-                    return await res.text();
-                }
-            };
-
-            // 【核心功能】自動爬取 Top Charts 頁面獲取所有 Playlist
-            useEffect(() => {
-                const loadTopCharts = async () => {
-                    try {
-                        const res = await fetchData("https://music.apple.com/hk/new/top-charts/playlists");
-                        const doc = new DOMParser().parseFromString(res, 'text/html');
-                        let foundLists = [];
-
-                        // 優先透過解析畫面上的 <a> 標籤，這能最直接拿到 Apple Music 的歌單連結
-                        const links = Array.from(doc.querySelectorAll('a'));
-                        links.forEach(a => {
-                            const ariaLabel = a.getAttribute('aria-label') || '';
-                            const textContent = (a.textContent || '').trim();
-                            const titleRaw = ariaLabel || textContent;
-                            
-                            let href = a.getAttribute('href') || '';
-                            if (href.includes('/playlist/') && titleRaw) {
-                                // 處理 Apple Music 常見的 "歌單名稱、Apple Music" 格式
-                                let cleanTitle = titleRaw.split('、')[0];
-                                if (!href.startsWith('http')) href = `https://music.apple.com${href}`;
-                                
-                                // 避免重複加入
-                                if (!foundLists.find(f => f.url === href) && cleanTitle.length > 0) {
-                                    foundLists.push({ title: cleanTitle, url: href });
-                                }
-                            }
-                        });
-
-                        // 備用方案：如果 DOM 抓不到，嘗試從內建的 JSON 資料中爬取
-                        if (foundLists.length === 0) {
-                            const script = doc.getElementById('serialized-server-data');
-                            if (script) {
-                                const json = JSON.parse(script.innerText);
-                                const search = (obj) => {
-                                    if (!obj || typeof obj !== 'object') return;
-                                    if (obj.type === 'playlists' && obj.attributes) {
-                                        const title = obj.attributes.name;
-                                        const url = obj.attributes.url;
-                                        if (title && url && !foundLists.find(f => f.url === url)) {
-                                            foundLists.push({ title, url });
-                                        }
-                                    }
-                                    Object.values(obj).forEach(search);
-                                };
-                                search(json);
-                            }
-                        }
-                        
-                        setTopPlaylists(foundLists);
-                    } catch (e) {
-                        console.error("Top charts fetch error", e);
-                    }
-                };
-                loadTopCharts();
-            }, []);
-
-            const fetchPreviewUrl = async (trackId) => {
-                if (!trackId) return null;
-                try {
-                    const apiUrl = `https://itunes.apple.com/lookup?id=${trackId}&country=HK`;
-                    const resText = await fetchData(apiUrl);
-                    const json = JSON.parse(resText);
-                    return json.results?.[0]?.previewUrl || null;
-                } catch (e) {
-                    return null;
-                }
-            };
-
-            const handleTogglePlay = async (song) => {
-                if (playingId === song.id) {
-                    audioRef.current.pause();
-                    setPlayingId(null);
-                    return;
-                }
-
-                audioRef.current.pause();
-                
-                if (song.preview) {
-                    audioRef.current.src = song.preview;
-                    audioRef.current.load();
-                    audioRef.current.play();
-                    setPlayingId(song.id);
-                    return;
-                }
-
-                setLoadingAudioId(song.id);
-                const extractTrackId = (url) => { try { return new URL(url).searchParams.get('i'); } catch { return null; } };
-                const trackId = extractTrackId(song.url) || song.id; 
-                const pUrl = await fetchPreviewUrl(trackId);
-                
-                if (pUrl) {
-                    song.preview = pUrl; 
-                    audioRef.current.src = pUrl;
-                    audioRef.current.load();
-                    audioRef.current.play();
-                    setPlayingId(song.id);
-                } else {
-                    addLog(`❌ 無法獲取試聽檔`);
-                }
-                setLoadingAudioId(null);
-            };
-
-            useEffect(() => {
-                const a = audioRef.current;
-                const end = () => setPlayingId(null);
-                a.addEventListener('ended', end);
-                return () => a.removeEventListener('ended', end);
-            }, []);
-
-            const sendToTelegram = async (song) => {
-                if (sendingMap[song.id] === 'sending') return;
-                setSendingMap(p => ({ ...p, [song.id]: 'sending' }));
-                
-                const message = `<b>${song.name}</b>\n${song.artist}\n\n${cleanUrl(song.url)}`;
-                
-                try {
-                    const res = await fetch(`https://api.telegram.org/bot${config.tgToken}/sendMessage`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ chat_id: config.tgChatId, text: message, parse_mode: 'HTML' })
-                    });
-                    if (!res.ok) throw new Error();
-                    setSendingMap(p => ({ ...p, [song.id]: 'success' }));
-                    setTimeout(() => setSendingMap(p => ({ ...p, [song.id]: null })), 3000);
-                } catch (e) {
-                    addLog(`❌ 同步失敗: ${song.name}`);
-                    setSendingMap(p => ({ ...p, [song.id]: 'error' }));
-                }
-            };
-
-            const parseRoomSongs = (html) => {
-                const doc = new DOMParser().parseFromString(html, 'text/html');
-                const script = doc.getElementById('serialized-server-data');
-                let found = [];
-
-                if (script) {
-                    try {
-                        const json = JSON.parse(script.innerText);
-                        const search = (obj) => {
-                            if (!obj || typeof obj !== 'object') return;
-                            const list = Array.isArray(obj.items) ? obj.items : (Array.isArray(obj.data) ? obj.data : null);
-                            
-                            if (list) {
-                                list.forEach(i => {
-                                    const attrs = i.attributes || {};
-                                    const name = i.title || attrs.name;
-                                    const artist = i.artistName || attrs.artistName;
-                                    const url = i.contentDescriptor?.url || i.url || attrs.url || '';
-                                    const artworkObj = i.artwork || attrs.artwork || {};
-                                    const artworkUrl = artworkObj.url;
-
-                                    if (name && artist && (!i.type || i.type === 'songs' || i.type === 'tracks')) {
-                                        found.push({
-                                            id: i.id || `${name}-${artist}`,
-                                            name: name,
-                                            artist: artist,
-                                            url: url,
-                                            img: artworkUrl ? artworkUrl.replace('{w}', '100').replace('{h}', '100').replace('{f}', 'jpg') : null,
-                                            preview: attrs.previews?.[0]?.url || null,
-                                            color: CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]
-                                        });
-                                    }
-                                });
-                            }
-                            Object.values(obj).forEach(search);
-                        };
-                        search(Array.isArray(json) ? json[0] : json);
-                    } catch {}
-                }
-                return found.filter((v, idx, a) => a.findIndex(t => (t.name === v.name && t.artist === v.artist)) === idx);
-            };
-
-            const runSync = async () => {
-                setStatus('loading');
-                setRoomSongs([]);
-                setSearchTerm(''); 
-                setLogs([`🚀 啟動掃描引擎...`]);
-                
-                const targetCat = CATEGORIES[config.category];
-                
-                try {
-                    let currentUrl = config.roomUrl;
-
-                    // 若是預設的三大來源 (需要搜尋 HTML DOM 來找最新 Room ID)
-                    if (targetCat) {
-                        addLog(`🔍 正在尋找最新 ${targetCat.label} ID...`);
-                        let foundUrl = null;
-                        
-                        try {
-                            const newPageHtml = await fetchData(targetCat.startPage);
-                            const doc = new DOMParser().parseFromString(newPageHtml, 'text/html');
-                            
-                            const links = Array.from(doc.querySelectorAll('a'));
-                            const targetLink = links.find(a => {
-                                const text = (a.textContent || '').trim();
-                                const href = a.getAttribute('href') || '';
-                                return text.includes(targetCat.searchTitle) && (href.includes('/room/') || href.includes('/playlist/'));
-                            });
-
-                            if (targetLink) {
-                                let href = targetLink.getAttribute('href');
-                                foundUrl = href.startsWith('http') ? href : `https://music.apple.com${href}`;
-                            }
-                        } catch (urlError) {}
-
-                        if (!foundUrl) {
-                            addLog(`⚠️ 首頁未找到，嘗試 Search 頁面深層搜尋...`);
-                            try {
-                                const searchHtml = await fetchData(`https://music.apple.com/hk/search?term=${encodeURIComponent(targetCat.searchTitle)}`);
-                                const sDoc = new DOMParser().parseFromString(searchHtml, 'text/html');
-                                const sScript = sDoc.getElementById('serialized-server-data');
-                                if (sScript) {
-                                    const sJson = JSON.parse(sScript.innerText);
-                                    const sSearchRoom = (obj) => {
-                                        if (!obj || typeof obj !== 'object' || foundUrl) return;
-                                        if (obj.title && obj.title.includes(targetCat.searchTitle) && typeof obj.url === 'string' && (obj.url.includes('/room/') || obj.url.includes('/playlist/'))) {
-                                            foundUrl = obj.url; return;
-                                        }
-                                        Object.values(obj).forEach(sSearchRoom);
-                                    };
-                                    sSearchRoom(sJson);
-                                }
-                            } catch (e) {}
-                        }
-                        
-                        if (foundUrl) {
-                            currentUrl = foundUrl;
-                            setConfig(prev => ({ ...prev, roomUrl: foundUrl })); 
-                            addLog(`✅ 成功尋獲: ${foundUrl.split('/').pop().substring(0, 15)}...`);
-                        } else {
-                            addLog(`⚠️ 找不到最新連結，使用上次快取...`);
-                        }
-                    } 
-                    // 若是使用者在下拉選單選擇了動態抓取到的「排行榜」 URL
-                    else if (config.category && config.category.startsWith('http')) {
-                        currentUrl = config.category;
-                        addLog(`🔍 鎖定排行榜歌單...`);
-                        setConfig(prev => ({ ...prev, roomUrl: currentUrl }));
-                    }
-
-                    addLog(`📡 正在下載音軌資料...`);
-                    const html = await fetchData(currentUrl);
-                    const results = parseRoomSongs(html);
-                    
-                    if (results.length === 0) throw new Error("此 URL 無法解析出歌曲資料");
-                    
-                    setRoomSongs(results);
-                    addLog(`✅ 成功獲取 ${results.length} 首歌曲`);
-                    setStatus('done');
-                } catch (e) {
-                    addLog(`❌ 同步失敗: ${e.message}`);
-                    setStatus('error');
-                }
-            };
-
-            useEffect(() => { runSync(); }, []); 
-
-            const fetchApiSearch = useCallback(async (keyword, offset, isLoadMore = false) => {
-                if (!keyword) return;
-                
-                const cacheKey = `${keyword}_${offset}`;
-                const cached = searchCache.current[cacheKey];
-
-                if (cached && Date.now() - cached.timestamp < 60000) {
-                    if (isLoadMore) setSearchSongs(prev => [...prev, ...cached.data]);
-                    else setSearchSongs(cached.data);
-                    
-                    setHasMore(cached.data.length === 25);
-                    setIsSearching(false);
-                    setIsFetchingMore(false);
-                    return;
-                }
-
-                try {
-                    if (isLoadMore) setIsFetchingMore(true);
-                    else setIsSearching(true);
-
-                    const searchUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(keyword)}&country=HK&entity=song&limit=25&offset=${offset}`;
-                    const resText = await fetchData(searchUrl);
-                    const data = JSON.parse(resText);
-                    
-                    const results = (data.results || []).map(i => ({
-                        id: i.trackId ? i.trackId.toString() : `${i.trackName}-${i.artistName}`,
-                        name: i.trackName,
-                        artist: i.artistName,
-                        url: i.trackViewUrl,
-                        img: i.artworkUrl100,
-                        preview: i.previewUrl,
-                        color: CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)]
-                    }));
-
-                    searchCache.current[cacheKey] = { data: results, timestamp: Date.now() };
-
-                    if (isLoadMore) setSearchSongs(prev => [...prev, ...results]);
-                    else setSearchSongs(results);
-                    
-                    setHasMore(results.length === 25);
-                } catch (e) {
-                    addLog(`❌ API 搜尋失敗`);
-                } finally {
-                    setIsSearching(false);
-                    setIsFetchingMore(false);
-                }
-            }, []);
-
-            useEffect(() => {
-                const timer = setTimeout(() => {
-                    const keyword = searchTerm.trim();
-                    if (!keyword) {
-                        setSearchSongs([]);
-                        setSearchOffset(0);
-                        setHasMore(false);
-                        setIsSearching(false);
-                        return;
-                    }
-                    setSearchOffset(0);
-                    fetchApiSearch(keyword, 0, false);
-                }, 600);
-                return () => clearTimeout(timer);
-            }, [searchTerm, fetchApiSearch]);
-
-            useEffect(() => {
-                const observer = new IntersectionObserver(
-                    (entries) => {
-                        if (entries[0].isIntersecting && hasMore && !isSearching && !isFetchingMore) {
-                            setSearchOffset(prev => {
-                                const nextOffset = prev + 25;
-                                fetchApiSearch(searchTerm.trim(), nextOffset, true);
-                                return nextOffset;
-                            });
-                        }
-                    },
-                    { threshold: 0.1 }
-                );
-
-                if (observerTarget.current) observer.observe(observerTarget.current);
-                return () => { if (observerTarget.current) observer.disconnect(); };
-            }, [hasMore, isSearching, isFetchingMore, searchTerm, fetchApiSearch]);
-
-            const displayList = useMemo(() => {
-                const baseList = searchTerm.trim() ? searchSongs : roomSongs;
-                return baseList.filter(s => onlyChinese ? /[\u4e00-\u9fa5]/.test(s.name + s.artist) : true);
-            }, [roomSongs, searchSongs, searchTerm, onlyChinese]);
-
-            // 在 macOS Title Bar 顯示目前所在的類別
-            const activeLabel = useMemo(() => {
-                if (CATEGORIES[config.category]) return CATEGORIES[config.category].label;
-                const found = topPlaylists.find(p => p.url === config.category);
-                if (found) return found.title;
-                return "自訂歌單";
-            }, [config.category, topPlaylists]);
-
-            return (
-                <div className="max-w-xl mx-auto min-h-screen flex flex-col p-4 pb-24">
-                    
-                    <div className="mt-6 mb-4 rounded-2xl overflow-hidden shadow-sm border border-gray-200 bg-white">
-                        <div className="bg-gray-100/80 px-4 py-2.5 flex items-center justify-between border-b border-gray-200 backdrop-blur-md">
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-[#ff5f56] shadow-sm border border-red-500/20"></div>
-                                <div className="w-3 h-3 rounded-full bg-[#ffbd2e] shadow-sm border border-yellow-500/20"></div>
-                                <div className="w-3 h-3 rounded-full bg-[#27c93f] shadow-sm border border-green-500/20"></div>
-                                <span className="text-[11px] text-gray-600 font-black ml-3 tracking-widest uppercase select-none">
-                                    Tracker v5.0 <span className="text-blue-500 ml-1">[{activeLabel}]</span>
-                                </span>
-                            </div>
-                            
-                            <div className="flex items-center gap-1">
-                                <button 
-                                    onClick={runSync} 
-                                    disabled={status === 'loading'} 
-                                    className="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-white transition-all disabled:opacity-50 border border-transparent hover:border-gray-200 shadow-sm hover:shadow-sm" 
-                                    title="重新整理目前歌單"
-                                >
-                                    {status === 'loading' ? <Icons.Loader className="w-4 h-4 text-blue-500" /> : <Icons.Refresh className="w-4 h-4" />}
-                                </button>
-                                <button 
-                                    onClick={() => setShowSettings(!showSettings)} 
-                                    className={`p-1.5 rounded-lg transition-all border shadow-sm ${
-                                        showSettings 
-                                        ? 'bg-blue-50 text-blue-600 border-blue-200' 
-                                        : 'bg-transparent text-gray-500 border-transparent hover:bg-white hover:text-gray-700 hover:border-gray-200'
-                                    }`} 
-                                    title="設定"
-                                >
-                                    <Icons.Settings className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="p-4 h-32 overflow-y-auto custom-scrollbar font-mono text-[11px] leading-relaxed bg-[#f8fafc]">
-                            {logs.map((l, i) => (
-                                <div key={i} className={`
-                                    ${l.includes('✅') ? 'text-emerald-600' : ''} 
-                                    ${l.includes('❌') ? 'text-rose-500' : ''} 
-                                    ${l.includes('🔍') || l.includes('📡') ? 'text-blue-600' : ''}
-                                    ${!l.includes('✅') && !l.includes('❌') && !l.includes('🔍') && !l.includes('📡') ? 'text-gray-700' : ''}
-                                `}>
-                                    <span className="text-gray-400 mr-2">~ %</span>{l}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {showSettings && (
-                        <div className="mb-6 p-5 apple-glass rounded-2xl animate-slide-up shadow-sm">
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase px-1">擷取來源 (Source)</label>
-                                    <select 
-                                        className="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs font-mono text-gray-700 outline-none focus:border-blue-400 transition-all mt-1 appearance-none cursor-pointer"
-                                        value={config.category} 
-                                        onChange={e => {
-                                            setConfig({...config, category: e.target.value});
-                                            addLog("✅ 來源已切換，請點擊重新整理套用。");
-                                        }}
-                                    >
-                                        <optgroup label="預設推薦 (Default)">
-                                            <option value="new_songs">必聽新歌 (New Songs)</option>
-                                            <option value="pop_hits">今期流行 (Pop Hits)</option>
-                                            <option value="alist_canto">A-List：廣東歌 (A-List Cantopop)</option>
-                                        </optgroup>
-                                        {topPlaylists.length > 0 && (
-                                            <optgroup label="動態排行榜 (Top Charts)">
-                                                {topPlaylists.map((p, idx) => (
-                                                    <option key={`top-${idx}`} value={p.url}>{p.title}</option>
-                                                ))}
-                                            </optgroup>
-                                        )}
-                                    </select>
-                                    {topPlaylists.length === 0 && <p className="text-[9px] text-gray-400 mt-1 pl-1">排行榜資料載入中...</p>}
-                                </div>
-                                <div className="mt-3">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase px-1">Apple Music ID Cache</label>
-                                    <input className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-xs font-mono text-gray-400 outline-none mt-1" disabled value={config.roomUrl} title="此欄位由系統自動更新" />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase px-1">Telegram Bot Token</label>
-                                    <input className="w-full bg-white border border-gray-200 rounded-lg p-2.5 text-xs font-mono text-gray-700 outline-none focus:border-blue-400 transition-all mt-1" value={config.tgToken} onChange={e => setConfig({...config, tgToken: e.target.value})} />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase px-1">Telegram Chat ID</label>
-                                    <input className="w-full bg-white border border-gray-200 rounded-lg p-2.5 text-xs font-mono text-gray-700 outline-none focus:border-blue-400 transition-all mt-1" value={config.tgChatId} onChange={e => setConfig({...config, tgChatId: e.target.value})} />
-                                </div>
-                                <button onClick={() => {setShowSettings(false); addLog("✅ Preferences Saved.");}} className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-2.5 rounded-lg text-xs uppercase tracking-widest mt-2 transition-colors">儲存與關閉設定</button>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex-1 flex flex-col gap-4 animate-slide-up">
-                        
-                        <div className="sticky top-2 z-20 apple-glass p-2 rounded-xl flex gap-2 shadow-sm">
-                            <label className="flex-1 flex items-center bg-white/60 rounded-lg px-3 py-1.5 border border-gray-200 cursor-text focus-within:border-blue-400 transition-colors">
-                                {isSearching ? <Icons.Loader className="w-4 h-4 text-blue-500" /> : <Icons.Search />}
-                                <input 
-                                    className="bg-transparent w-full ml-2 text-sm outline-none placeholder:text-gray-400 font-medium text-gray-700" 
-                                    placeholder="全 Apple Music 搜尋..." 
-                                    value={searchTerm} 
-                                    onChange={e => setSearchTerm(e.target.value)} 
-                                />
-                                {searchTerm && (
-                                    <button 
-                                        onClick={() => { setSearchTerm(''); setSearchSongs([]); }}
-                                        className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors"
-                                    >
-                                        <Icons.Close />
-                                    </button>
-                                )}
-                            </label>
-                            <button onClick={() => setOnlyChinese(!onlyChinese)} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${onlyChinese ? 'bg-blue-500 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}>中文</button>
-                        </div>
-
-                        <div className="space-y-3 mt-2">
-                            {!isSearching && searchTerm && displayList.length === 0 && (
-                                <div className="text-center text-sm text-gray-400 py-10 font-medium">找不到相關歌曲</div>
-                            )}
-                            
-                            {displayList.map((s, i) => (
-                                <div 
-                                    key={`${s.id}-${i}`} 
-                                    className={`song-item px-3 py-2 rounded-2xl flex items-center gap-3 border shadow-sm backdrop-blur-md`}
-                                    style={{ 
-                                        backgroundColor: playingId === s.id ? `${s.color}25` : `${s.color}15`, 
-                                        borderColor: `${s.color}40`
-                                    }}
-                                >
-                                    <div className="w-10 h-10 bg-white/50 rounded-xl overflow-hidden shrink-0 relative cursor-pointer group shadow-sm" onClick={() => handleTogglePlay(s)}>
-                                        {s.img ? <img src={s.img} loading="lazy" className={`w-full h-full object-cover transition-opacity ${playingId === s.id ? 'opacity-30 blur-[1px]' : 'opacity-90 group-hover:opacity-70'}`} /> : <div className="w-full h-full flex items-center justify-center text-gray-400"><Icons.Music /></div>}
-                                        <div className="absolute inset-0 flex items-center justify-center text-gray-800">
-                                            {loadingAudioId === s.id ? <Icons.Loader className="w-4 h-4 text-gray-700" /> : 
-                                             playingId === s.id ? (
-                                                <div className="bars">
-                                                    <div className="bar" style={{ backgroundColor: s.color }}></div>
-                                                    <div className="bar" style={{ backgroundColor: s.color }}></div>
-                                                    <div className="bar" style={{ backgroundColor: s.color }}></div>
-                                                </div>
-                                             ) : 
-                                             <div className="opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md text-white"><Icons.Play /></div>}
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer" onClick={() => handleTogglePlay(s)}>
-                                        <div className="flex items-baseline gap-2">
-                                            <span className="text-sm font-bold truncate transition-colors" style={{ color: '#1e293b' }}>
-                                                {s.name}
-                                            </span>
-                                        </div>
-                                        <span className="text-[11px] font-semibold truncate mt-0.5" style={{ color: `${s.color}` }}>
-                                            {s.artist}
-                                        </span>
-                                    </div>
-
-                                    <button 
-                                        onClick={() => sendToTelegram(s)}
-                                        className={`p-2.5 rounded-xl transition-all shrink-0 bg-white/60 hover:bg-white shadow-sm border border-white/40 ${
-                                            sendingMap[s.id] === 'success' ? 'text-emerald-500' : 'text-gray-500 hover:text-blue-500'
-                                        }`}
-                                    >
-                                        {sendingMap[s.id] === 'sending' ? <Icons.Loader className="w-3.5 h-3.5" /> : 
-                                         sendingMap[s.id] === 'success' ? <Icons.Check className="w-3.5 h-3.5" /> : 
-                                         <Icons.Telegram />}
-                                    </button>
-                                </div>
-                            ))}
-                            
-                            {searchTerm.trim() && (
-                                <div ref={observerTarget} className="h-10 flex items-center justify-center">
-                                    {isFetchingMore && <Icons.Loader className="w-5 h-5 text-gray-400" />}
-                                </div>
-                            )}
-                        </div>
-                    </div>
+        <div className="space-y-3 mt-2">
+          {songs.length === 0 && !isPastedLoading && (
+            <div className="text-center text-sm text-gray-400 py-16 font-medium">
+              貼上 Apple Music 的 Playlist、Room 或 Album 連結，然後按「獲取歌曲」
+            </div>
+          )}
+          {displayList.map((s, i) => (
+            <div key={`${s.id}-${i}`} className="song-item px-3 py-2 rounded-2xl flex items-center gap-3 border shadow-sm backdrop-blur-md"
+              style={{ backgroundColor: playingId === s.id ? `${s.color}25` : `${s.color}15`, borderColor: `${s.color}40` }}>
+              <div className="w-10 h-10 bg-white/50 rounded-xl overflow-hidden shrink-0 relative cursor-pointer group shadow-sm" onClick={() => handleTogglePlay(s)}>
+                {s.img ? (
+                  <img src={s.img} loading="lazy" className={`w-full h-full object-cover transition-opacity ${playingId === s.id ? "opacity-30 blur-[1px]" : "opacity-90 group-hover:opacity-70"}`} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400"><Icons.Music /></div>
+                )}
+                <div className="absolute inset-0 flex items-center justify-center text-gray-800">
+                  {loadingAudioId === s.id ? <Icons.Loader className="w-4 h-4 text-gray-700" /> : (
+                    playingId === s.id ? (
+                      <div className="bars">
+                        <div className="bar" style={{ backgroundColor: s.color }}></div>
+                        <div className="bar" style={{ backgroundColor: s.color }}></div>
+                        <div className="bar" style={{ backgroundColor: s.color }}></div>
+                      </div>
+                    ) : (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md text-white"><Icons.Play /></div>
+                    )
+                  )}
                 </div>
-            );
-        };
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer" onClick={() => handleTogglePlay(s)}>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-sm font-bold truncate transition-colors" style={{ color: "#1e293b" }}>{s.name}</span>
+                </div>
+                <span className="text-[11px] font-semibold truncate mt-0.5" style={{ color: s.color }}>{s.artist}</span>
+              </div>
+              <button onClick={() => copySong(s)}
+                className={`p-2.5 rounded-xl transition-all shrink-0 bg-white/60 hover:bg-white shadow-sm border border-white/40 ${copyMap[s.id] ? "text-emerald-500" : "text-gray-500 hover:text-gray-800"}`}
+                title="複製歌曲資訊">
+                {copyMap[s.id] ? <Icons.Check /> : <Icons.Copy />}
+              </button>
+              <button onClick={() => sendToTelegram(s)}
+                className={`p-2.5 rounded-xl transition-all shrink-0 bg-white/60 hover:bg-white shadow-sm border border-white/40 ${sendingMap[s.id] === "success" ? "text-emerald-500" : "text-gray-500 hover:text-blue-500"}`}
+                title="傳送到 Telegram">
+                {sendingMap[s.id] === "sending" ? <Icons.Loader className="w-3.5 h-3.5" /> : (sendingMap[s.id] === "success" ? <Icons.Check className="w-3.5 h-3.5" /> : <Icons.Telegram />)}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
 </body>
 </html>
